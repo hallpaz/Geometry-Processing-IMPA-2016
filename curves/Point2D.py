@@ -51,6 +51,12 @@ class Point2D:
             representation += self.name + " "
         representation += "({0}, {1})".format(str(self.x), str(self.y))
         return representation
+    def __repr__(self):
+        representation = ""
+        if self.name is not None:
+            representation += self.name + " "
+        representation += "({0}, {1})".format(str(self.x), str(self.y))
+        return representation
 
     def __add__(self, other):
         """ Addition of 2 points  """

@@ -73,8 +73,9 @@ class Segment():
         if length_squared < 0.00000001:
             return Point2D.distance(self.first, point)
 
-        t = max(0, min(1, Point2D.dot_product(point - self.first, self.second - self.first)))
-        projection = self.first + t*(self.second - self.first)
+        #t = max(0, min(1, Point2D.dot_product(point - self.first, self.second - self.first)))
+        u = ((point.x - self.first.x)*(self.second.x - self.first.x) + (point.y - self.first.y)*(self.second.y - self.first.y))/length_squared
+        projection = self.first + u*(self.second - self.first)
         return Point2D.distance(point, projection)
 
 
