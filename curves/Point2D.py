@@ -24,6 +24,8 @@ class Point2D:
         return points
 
     def write_to_file(points:list, filename:str):
+        if not points:
+            return None
         with open(filename, "w") as myfile:
             for point in points:
                 if point.name is None:

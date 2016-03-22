@@ -5,6 +5,8 @@ import turtle
 import math
 
 def peucker_reduction(points, error_tolerance):
+    if not points:
+        return None
     dmax = 0
     index = 0
     fitting_line = Segment(points[0], points[-1])
@@ -27,6 +29,8 @@ def peucker_reduction(points, error_tolerance):
 
 
 def draw_segments(points, filename, hold = False):
+    if not points:
+        return
     t = turtle.Turtle()
 
     t.penup()
@@ -41,10 +45,10 @@ def draw_segments(points, filename, hold = False):
     ts.getcanvas().postscript(file=filename)
     if hold:
         ts.mainloop()
-    try:
-        ts.clear()
-    except Exception as e:
-        pass
+    # try:
+    #     ts.clear()
+    # except Exception as e:
+    #     pass
 
 
 

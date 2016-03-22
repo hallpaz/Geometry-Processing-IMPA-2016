@@ -60,6 +60,40 @@ class Segment():
 
         return False
 
+    def ray_intersection(self, other)->float:
+        #if(self.intersects(other)):
+        #     rayOrigin = self.first
+        #     rayDirection = self.second - self.first
+        #     v3 = Point2D(-rayDirection.y, rayDirection.x)
+        #     v1 = rayOrigin - other.first
+        #     v2 = other.second - other.first
+        #
+        #     denominator = Point2D.dot_product(v2, v3)
+        #     if abs(denominator) < 0.00001:
+        #         return None
+        #
+        #     t1 = CCW_test(v2, v1) / denominator
+        #     t2 = Point2D.dot_product(v1, v3) / denominator
+        #     if t1 >= 0.0 and t2 >= 0.0 and t2 <= 1.0:
+        #         return rayOrigin + t1 * rayDirection
+        #
+        # return None
+        x1, y1 = self.first.x, self.first.y
+        x2, y2 = self.second.x, self.second.y
+        x3, y3 = other.first.x, other.first.y
+        x4, y4 = other.second.x, other.second.y
+
+        d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
+        if abs(d) < 0.00001:
+            return None
+
+        xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d
+        yi = ((y3-y4)*(x1*y2-y1*x2)-(y1-y2)*(x3*y4-y3*x4))/d
+
+        return Point2D(xi,yi)
+
+        return None
+
     def contains(self, point)->bool:
         if (min(self.first.x, self.second.x) <= point.x and
         point.x <= max(self.first.x, self.second.x) and
