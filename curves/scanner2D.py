@@ -1,12 +1,11 @@
 from PIL import Image
-from data_reduction import draw_segments
+from drawing import draw_segments, draw_points_set, draw_segment_set
 from Point2D import Point2D, CCW_test
 from Segment import Segment
 
 import argparse
 import math
 import os
-import turtle
 
 BIG = 9999999
 
@@ -82,56 +81,6 @@ def getsample(image, position, dst):
         #             intersection = p
         #     return intersection
     return None
-
-def draw_segment_set(segments, filename, hold = False):
-    colors = ["red", "green", "blue", "yellow"]
-    i = 0
-    if not segments:
-        return
-    t = turtle.Turtle()
-    t.penup()
-    for segment in segments:
-        t.goto(segment.first.x, segment.first.y)
-        t.pendown()
-        t.goto(segment.second.x, segment.second.y)
-        t.penup()
-        t.color(colors[i])
-        i = (i + 1)%4
-
-    ts = t.getscreen()
-
-    ts.getcanvas().postscript(file=filename)
-    if hold:
-        ts.mainloop()
-    try:
-        ts.clear()
-    except Exception as e:
-        pass
-
-def draw_points_set(points, filename, hold = False):
-    colors = ["red", "green", "blue", "yellow"]
-    i = 0
-    if not points:
-        return
-    t = turtle.Turtle()
-    ts = t.getscreen()
-    height = ts.canvheight
-    t.penup()
-    for point in points:
-        t.goto(point.x, height - point.y)
-        t.pendown()
-        t.dot()
-        t.penup()
-
-
-
-    ts.getcanvas().postscript(file=filename)
-    if hold:
-        ts.mainloop()
-    try:
-        ts.clear()
-    except Exception as e:
-        pass
 
 def get_ortho_sample(image, position, dst):
 
@@ -255,6 +204,51 @@ def get_samples_from_image(image, num_samples = 100):
     return samples
 
 
+def get_circles_from_image(image, num_samples = 100):
+    minx = BIG
+    maxx = -BIG
+    miny = BIG
+    maxy = -BIG
+    samples = []
+    for j in range(image.height):
+        for i in range(image.width):
+            if image.getpixel((i,j)) == 0: #is black
+                if i < minx:
+                    minx = i
+                if i > maxx:
+                    maxx = i
+                if j < miny:
+                    miny = j
+                if j > maxy:
+                    maxy = j
+
+    points = [Point2D(minx, miny), Point2D(minx, maxy), Point2D(maxx, maxy), Point2D(maxx, miny)]
+    draw_segments(points, "original.eps")
+
+    maxx += 1
+    minx -= 1
+    maxy += 1
+    miny -= 1
+    print((minx, miny), (maxx, maxy))
+    center = Point2D(minx + (maxx - minx)/2, miny + (maxy - miny)/2)
+    radius = math.sqrt(((maxx - minx)/2)**2 + ((maxy - miny)/2)**2)
+    print(center, radius)
+    inc = 2*math.pi/num_samples
+
+    seg_list = []
+
+    for i in range(num_samples):
+        pos = center + radius*Point2D(math.cos(i*inc), math.sin(i*inc))
+        sample = getsample(image, pos, center)
+        seg_list.append(Segment(pos, center))
+        if sample is not None:
+            samples.append(sample)
+            print("sample: ", i)
+
+    draw_segment_set(seg_list, "circle.eps")
+    return samples
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='''
     This script reads an image and simulates a scanner 2D The output is written to a txt file
@@ -275,6 +269,7 @@ if __name__ == '__main__':
     num_samples = int(args.num_samples)
 
     samples = get_samples_from_image(image, num_samples)
+    #samples = get_circles_from_image(image, num_samples)
 
     output_file = basename
     dot_index = output_file.rfind(".")

@@ -61,23 +61,6 @@ class Segment():
         return False
 
     def ray_intersection(self, other)->float:
-        #if(self.intersects(other)):
-        #     rayOrigin = self.first
-        #     rayDirection = self.second - self.first
-        #     v3 = Point2D(-rayDirection.y, rayDirection.x)
-        #     v1 = rayOrigin - other.first
-        #     v2 = other.second - other.first
-        #
-        #     denominator = Point2D.dot_product(v2, v3)
-        #     if abs(denominator) < 0.00001:
-        #         return None
-        #
-        #     t1 = CCW_test(v2, v1) / denominator
-        #     t2 = Point2D.dot_product(v1, v3) / denominator
-        #     if t1 >= 0.0 and t2 >= 0.0 and t2 <= 1.0:
-        #         return rayOrigin + t1 * rayDirection
-        #
-        # return None
         x1, y1 = self.first.x, self.first.y
         x2, y2 = self.second.x, self.second.y
         x3, y3 = other.first.x, other.first.y
@@ -107,7 +90,6 @@ class Segment():
         if length_squared < 0.00000001:
             return Point2D.distance(self.first, point)
 
-        #t = max(0, min(1, Point2D.dot_product(point - self.first, self.second - self.first)))
         u = ((point.x - self.first.x)*(self.second.x - self.first.x) + (point.y - self.first.y)*(self.second.y - self.first.y))/length_squared
         projection = self.first + u*(self.second - self.first)
         return Point2D.distance(point, projection)

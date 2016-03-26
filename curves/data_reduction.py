@@ -1,7 +1,7 @@
+from drawing import draw_segments
 from Point2D import Point2D
 from Segment import Segment
 import argparse
-import turtle
 import math
 
 def peucker_reduction(points, error_tolerance):
@@ -28,39 +28,15 @@ def peucker_reduction(points, error_tolerance):
     return result
 
 
-def draw_segments(points, filename, hold = False):
-    if not points:
-        return
-    t = turtle.Turtle()
-
-    t.penup()
-    t.goto(points[0].x, points[0].y)
-    t.pendown()
-    for point in points[1:]:
-        t.goto(point.x, point.y)
-    t.goto(points[0].x, points[0].y)
-
-    ts = t.getscreen()
-
-    ts.getcanvas().postscript(file=filename)
-    if hold:
-        ts.mainloop()
-    # try:
-    #     ts.clear()
-    # except Exception as e:
-    #     pass
-
-
-
-def circle(radius = 200, center = 0, samples = 100):
-    points = []
-    inc = 2*math.pi/samples
-    for i in range(samples):
-        points.append(Point2D(radius*math.cos(i*inc), radius*math.sin(i*inc)))
-
-    return points
 
 def reduce_circle():
+    def circle(radius = 200, center = 0, samples = 100):
+        points = []
+        inc = 2*math.pi/samples
+        for i in range(samples):
+            points.append(Point2D(radius*math.cos(i*inc), radius*math.sin(i*inc)))
+
+        return points
     data_folder = "data/"
     images_folder = "images/"
 
