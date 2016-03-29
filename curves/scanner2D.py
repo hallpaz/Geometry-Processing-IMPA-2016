@@ -240,6 +240,7 @@ def get_circles_from_image(image, num_samples = 100):
     for i in range(num_samples):
         pos = center + radius*Point2D(math.cos(i*inc), math.sin(i*inc))
         sample = getsample(image, pos, center)
+        #sample = get_samples_bresenham(image, pos, center)
         seg_list.append(Segment(pos, center))
         if sample is not None:
             samples.append(sample)
@@ -249,15 +250,83 @@ def get_circles_from_image(image, num_samples = 100):
     return samples
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='''
-    This script reads an image and simulates a scanner 2D The output is written to a txt file
-    ''')
-    parser.add_argument('image_file', help='input list of points with X Y per line (format: txt)')
-    #parser.add_argument('output_file', help='output list of points (format: txt)')
-    parser.add_argument('num_samples', help='Number of sensors')
+def get_samples_bresenham(image, position, dst):
+    w = dst.x - position.x
+    h = dst.y - position.y
+    dx1 = dy1 = dx2 = dy2 = 0
+    if w < 0:
+        dx1 = -1
+    elif w > 0:
+        dx1 = 1
+    if h < 0:
+        dy1 = -1
+    elif h > 0:
+        dy1 = 1
+    if w < 0:
+        dx2 = -1
+    elif w > 0:
+        dx2 = 1
+    longest = abs(w)
+    shortest = abs(h)
+    if not (longest>shortest):
+        longest = abs(h)
+        shortest = abs(w)
+        if h < 0:
+            dy2 = -1
+        elif h > 0:
+            dy2 = 1
+        dx2 = 0
 
-    args = parser.parse_args()
+    numerator = longest >> 1
+    for i in range(longest):
+        t = ray.ray_intersection(Segment(Point2D(x, y), Point2D(x+1, y)))
+        if t is not None and (image.getpixel((x,y)) == 0 and image.getpixel((x+1, y)) == 0):
+            return t
+        t = ray.ray_intersection(Segment(Point2D(x+1, y), Point2D(x+1, y+1)))
+        if t is not None and (image.getpixel((x+1,y)) == 0 and image.getpixel((x+1, y+1)) == 0):
+            return t
+        t = ray.ray_intersection(Segment(Point2D(x+1, y+1), Point2D(x, y+1)))
+        if t is not None and (image.getpixel((x+1,y+1)) == 0 and image.getpixel((x, y+1)) == 0):
+            return t
+        t = ray.ray_intersection(Segment(Point2D(x, y+1), Point2D(x, y)))
+        if t is not None and (image.getpixel((x,y+1)) == 0 and image.getpixel((x, y)) == 0):
+            return t
+        numerator += shortest
+        if not (numerator<longest):
+            numerator -= longest
+            x += dx1
+            y += dy1
+        else:
+            x += dx2
+            y += dy2
+    # dx = dst.x - position.x
+    # dy = dst.y - position.y
+    #
+    # D = 2*dy - dx
+    # y = position.y
+    #
+    # if D > 0:
+    #     y = y+1
+    #     D = D - (2*dx)
+    #     for x in range(position.x +1, dst.x+1):
+    #         t = ray.ray_intersection(Segment(Point2D(x, y), Point2D(x+1, y)))
+    #         if t is not None and (image.getpixel((x,y)) == 0 and image.getpixel((x+1, y)) == 0):
+    #             return t
+    #         t = ray.ray_intersection(Segment(Point2D(x+1, y), Point2D(x+1, y+1)))
+    #         if t is not None and (image.getpixel((x+1,y)) == 0 and image.getpixel((x+1, y+1)) == 0):
+    #             return t
+    #         t = ray.ray_intersection(Segment(Point2D(x+1, y+1), Point2D(x, y+1)))
+    #         if t is not None and (image.getpixel((x+1,y+1)) == 0 and image.getpixel((x, y+1)) == 0):
+    #             return t
+    #         t = ray.ray_intersection(Segment(Point2D(x, y+1), Point2D(x, y)))
+    #         if t is not None and (image.getpixel((x,y+1)) == 0 and image.getpixel((x, y)) == 0):
+    #             return t
+    #         D = D + (2*dy)
+    #         if D > 0
+    #             y = y+1
+    #             D = D - (2*dx)
+
+def main(args):
 
     basename = args.image_file
     bar_index = basename.rfind("/")
@@ -280,3 +349,14 @@ if __name__ == '__main__':
     Point2D.write_to_file(samples, data_file)
     output_file = os.path.join("sensor", output_file + str(num_samples) + "_sensors.eps")
     draw_points_set(samples, output_file, True)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='''
+    This script reads an image and simulates a scanner 2D The output is written to a txt file
+    ''')
+    parser.add_argument('image_file', help='input list of points with X Y per line (format: txt)')
+    #parser.add_argument('output_file', help='output list of points (format: txt)')
+    parser.add_argument('num_samples', help='Number of sensors')
+
+    args = parser.parse_args()
+    main(args)

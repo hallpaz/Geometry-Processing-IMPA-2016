@@ -1,4 +1,5 @@
 import turtle
+import matplotlib.pyplot as plt
 
 def draw_segments(points, filename, hold = False):
     if not points:
@@ -70,8 +71,76 @@ def draw_points_set(points, filename, hold = False):
     except Exception as e:
         pass
 
-def draw_voronoi_diagram():
-    pass
 
-def draw_delaunay_diagram():
-    pass
+def plot(ax, **kw):
+
+    if 'draw_vertices' not in kw: vertices(ax, **kw)
+    ax.axes.set_aspect('equal')
+
+    if 'segments' in kw: segments(ax, **kw)
+    if 'triangles' in kw: triangles(ax, **kw)
+    if 'holes' in kw: holes(ax, **kw)
+    if 'edges' in kw: edges(ax, **kw)
+
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+def plot_and_save(fname, should_close, ax, **kw):
+    plot(ax, **kw)
+    plt.savefig(fname, format='png', transparent=True)
+    if should_close:
+        plt.close()
+
+
+def vertices(ax, **kw):
+    verts = kw['vertices']
+    ax.scatter(*verts.T, color= kw['vertices_color'] if 'vertices_color' in kw else 'k')
+    if 'labels' in kw:
+        for i in range(verts.shape[0]):
+            ax.text(verts[i,0], verts[i,1], str(i))
+    if 'markers' in kw:
+        vm = kw['vertex_markers']
+        for i in range(verts.shape[0]):
+            ax.text(verts[i,0], verts[i,1], str(vm[i]))
+
+def segments(ax, **kw):
+    verts = kw['vertices']
+    segs = kw['segments']
+    for beg, end in segs:
+        x0, y0 = verts[beg, :]
+        x1, y1 = verts[end, :]
+        ax.fill([x0, x1], [y0, y1],
+                facecolor='none', edgecolor= kw['segments_color'] if 'segments_color' in kw else 'r', linewidth=2,
+                zorder=0)
+
+def triangles(ax, **kw):
+    verts = kw['vertices']
+    ax.triplot(verts[:,0], verts[:,1], kw['triangles'],'ko-')
+
+def holes(ax, **kw):
+    ax.scatter(*kw['holes'].T, marker='x', color= kw['holes_color'] if 'holes_color' in kw else 'r')
+
+def edges(ax, **kw):
+    """
+    Plot regular edges and rays (edges whose one endpoint is at infinity)
+    """
+    verts = kw['vertices']
+    edges = kw['edges']
+    for beg, end in edges:
+        x0, y0 = verts[beg, :]
+        x1, y1 = verts[end, :]
+        ax.fill([x0, x1], [y0, y1], facecolor= kw['face_color'] if 'face_color' in kw else 'none',
+        edgecolor= kw['edges_color'] if 'edges_color' in kw else 'k', linewidth=.5)
+
+    if ('ray_origins' not in kw) or ('ray_directions' not in kw):
+        return
+
+    lim = ax.axis()
+    ray_origin = kw['ray_origins']
+    ray_direct = kw['ray_directions']
+    for (beg, (vx, vy)) in zip(ray_origin.flatten(), ray_direct):
+        x0, y0 = verts[beg, :]
+        scale = 100.0 # some large number
+        x1, y1 = x0 + scale*vx, y0 + scale*vy
+        ax.fill([x0, x1], [y0, y1], facecolor='none', edgecolor='k', linewidth=.5)
+    ax.axis(lim) # make sure figure is not rescaled by ifinite ray
