@@ -74,7 +74,7 @@ def draw_points_set(points, filename, hold = False):
 
 def plot(ax, **kw):
 
-    if 'draw_vertices' not in kw: vertices(ax, **kw)
+    #if 'draw_vertices' not in kw: vertices(ax, **kw)
     ax.axes.set_aspect('equal')
 
     if 'segments' in kw: segments(ax, **kw)
@@ -115,7 +115,7 @@ def segments(ax, **kw):
 
 def triangles(ax, **kw):
     verts = kw['vertices']
-    ax.triplot(verts[:,0], verts[:,1], kw['triangles'],'ko-')
+    ax.triplot(verts[:,0], verts[:,1], kw['triangles'], 'k-')
 
 def holes(ax, **kw):
     ax.scatter(*kw['holes'].T, marker='x', color= kw['holes_color'] if 'holes_color' in kw else 'r')

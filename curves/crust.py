@@ -10,7 +10,7 @@ data_folder = "data"
 images_folder = os.path.join("images", "crust")
 
 def edges_from_triangle(triangle):
-    return [ (triangle[0], triangle[1]), (triangle[1], triangle[2]), (triangle[2], triangle[0]) ]
+    return [ sorted((triangle[0], triangle[1])), sorted((triangle[1], triangle[2])), sorted((triangle[2], triangle[0])) ]
 
 def crust(points: list, filename = None)-> list:
     points = np.array(points)
