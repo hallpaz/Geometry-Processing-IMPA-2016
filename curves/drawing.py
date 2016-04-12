@@ -87,7 +87,8 @@ def plot(ax, **kw):
 
 def plot_and_save(fname, should_close, ax, **kw):
     plot(ax, **kw)
-    plt.savefig(fname, format='png', transparent=True)
+    #plt.savefig(fname, format='png', transparent=True)
+    plt.savefig(fname, format='eps', transparent=True)
     if should_close:
         plt.close()
 
@@ -110,7 +111,7 @@ def segments(ax, **kw):
         x0, y0 = verts[beg, :]
         x1, y1 = verts[end, :]
         ax.fill([x0, x1], [y0, y1],
-                facecolor='none', edgecolor= kw['segments_color'] if 'segments_color' in kw else 'r', linewidth=2,
+                facecolor='none', edgecolor= kw['segments_color'] if 'segments_color' in kw else 'r', linewidth=1,
                 zorder=0)
 
 def triangles(ax, **kw):

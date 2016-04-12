@@ -34,7 +34,7 @@ def heuristic_reconstruction(points: list, filename = None):
 
     #try:
     drawing.plot(ax, vertices=points, segments=delaunay_edges)
-    drawing.plot_and_save(os.path.join(images_folder, os.path.join("delaunay",filename+"delaunay.png")),
+    drawing.plot_and_save(os.path.join(images_folder, os.path.join("delaunay",filename+"delaunay.eps")),
         True, ax, vertices=points, vertices_color="b")
     ax.axis(lim)
 
@@ -42,10 +42,10 @@ def heuristic_reconstruction(points: list, filename = None):
     triangles_length = [perimeter(points, t) for t in deltriangles]
     mean_length = sum(triangles_length)/len(triangles_length)
     std_length = np.std(triangles_length)
-    filtered_triangles = [deltriangles[i] for i in range(len(deltriangles)) if triangles_length[i] < (mean_length + 0.2*std_length)]
+    filtered_triangles = [deltriangles[i] for i in range(len(deltriangles)) if triangles_length[i] < (mean_length + 1*std_length)]
 
     ax = plt.axes()
-    drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename+"_region.png")),
+    drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename+"_region1std.eps")),
                 True, ax, triangles = filtered_triangles, vertices=points, draw_vertices=False)
 
     #graph initialization
@@ -72,8 +72,14 @@ def heuristic_reconstruction(points: list, filename = None):
     # print(boundary_segments)
 
     ax = plt.axes()
-    drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename+"_boundary_triangles.png")),
+    drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename+"_boundary_triangles1std.eps")),
                 True, ax, triangles = boundary_triangles, vertices=points, segments=boundary_segments)
+
+    ax = plt.axes()
+    drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename+"_boundary_triangles1stdstd.eps")),
+                True, ax, vertices=points, segments=boundary_segments)
+
+
 
 
     #except Exception as e:
