@@ -145,9 +145,6 @@ def traverse_boundary(graph:list, source, pivot = None):
         if pivot in source.neighbors[0].data and pivot in source.neighbors[1].data:
             pivot = source.data[1]
 
-    for node in graph:
-        node.color = Color.white
-
     boundary = []
     stack = []
     stack.append(source)
@@ -175,29 +172,43 @@ def traverse_boundary(graph:list, source, pivot = None):
 
     return boundary
 
+
 def draw_boundary(filename: str):
     vertices, indices = read_OFF(os.path.join(data_folder, filename))
     graph = setup_graph(vertices, indices)
     points = np.array([(v.x, v.y) for v in vertices])
 
-    pioneer = None
+
     for node in graph:
-        #print(node.neighbors)
-        if isOnBoundary(node):
-            pioneer = node
+        node.color = Color.white
+
+    should_continue = False
+    k = 0
+    while(True):
+        pioneer = None
+        for node in graph:
+            #print(node.neighbors)
+            if isOnBoundary(node) and node.color is Color.white:
+                pioneer = node
+                should_continue = True
+                break
+        if should_continue:
+            boundary = traverse_boundary(graph, pioneer)
+            print(len(boundary))
+            incremental = []
+            all_triangles = [b.data for b in boundary]
+            for i in range(len(boundary)):
+                t = boundary[i].data
+                incremental.append((t[0], t[1]))
+                incremental.append((t[1], t[2]))
+                incremental.append((t[0], t[2]))
+                ax = plt.axes()
+                drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename[:-4]+ str(k) + str(i) +"_boundary_triangles.png")),
+                        True, ax, vertices=points, segments=incremental, triangles=all_triangles)
+        else:
             break
-    boundary = traverse_boundary(graph, pioneer)
-    print(len(boundary))
-    incremental = []
-    all_triangles = [b.data for b in boundary]
-    for i in range(len(boundary)):
-        t = boundary[i].data
-        incremental.append((t[0], t[1]))
-        incremental.append((t[1], t[2]))
-        incremental.append((t[0], t[2]))
-        ax = plt.axes()
-        drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename[:-4]+ str(i) +"_boundary_triangles.png")),
-                True, ax, vertices=points, segments=incremental, triangles=all_triangles)
+        should_continue = False
+        k += 1
 
 # def face_association_from_OFF(filename: str):
 #     vertices, indices = read_OFF(filename)
