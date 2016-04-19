@@ -1,10 +1,17 @@
 import argparse
+import drawing
 import os
+import triangle
 
-from DataStructures import Vertex, Triangle
+from DataStructures import Vertex, Triangle, BoundingBox
+from data_structures import Node, Color
 
 
-data_folder = "data/"
+data_folder = "data"
+images_folder = os.path.join("images", "boundary")
+
+BIG = 7777777
+EMPTY = -1
 
 def read_OFF(off_file):
     vertexBuffer = []
@@ -49,7 +56,7 @@ def read_OFF(off_file):
 
         bounding_box = BoundingBox(minx, miny, minz-1, maxx, maxy, maxz+1)
 
-    return vertexBuffer, indexBuffer, bounding_box
+    return vertexBuffer, indexBuffer#, bounding_box
 
 def soup_to_mesh(filename: str, output_file: str, dimension = 2):
     vertices = []
@@ -84,19 +91,116 @@ def soup_to_mesh(filename: str, output_file: str, dimension = 2):
 
 
 ### Complete this ###
-def share_edge(edge: set, triangle: list):
+# def share_edge(edge: set, triangle: list):
+#
+#     if edge.intersection(triangle) == edge
 
-    if edge.intersection(triangle) == edge
+# def traverse_boundary(vertices, indices):
+#     boundary_triangles = [t for t in indices if ]
+#
+#     #graph initialization
+#     indices = [set([t.a, t.b, t.c]) for t in indices]
+#     num_of_triangles = len(indices)
+#     graph = [Node(i) for i in range(num_of_triangles)]
+#     for node in graph:
+#         current_vertices  = indices[node.id]
+#         node.neighbors = [index for index in range(num_of_triangles) if len(set(current_vertices).intersection(indices[index])) == 2]
+#         node.costs = [1.0 for i in node.neighbors]
+#
+#     connected_one = []
+#     def append_to(node, connected_one:list):
+#         connected_one.append(node)
+#
+#     BFS(graph, 1, append_to, connected_one)
+#     boundary_triangles = [filtered_triangles[node.id] for node in connected_one if len(node.neighbors) < 3]
 
-def face_association_from_OFF(filename: str):
-    vertices, indices = read_OFF(filename)
+def setup_graph(vertices, indices):
+    #graph initialization
+    triangles = [[t.a, t.b, t.c] for t in indices]
+    num_of_triangles = len(triangles)
+    graph = [Node(i) for i in range(num_of_triangles)]
+    for n in graph:
+        n.data = triangles[n.id]
+    for node in graph:
+        # current_vertices  = triangles[node.id]
+
+        neighbors = [index for index in range(num_of_triangles) if len(set(node.data).intersection(triangles[index])) == 2]
+
+        # puts neighbors in correct order (opposite side of vertex)
+        node.neighbors = [EMPTY, EMPTY, EMPTY]
+        for i in neighbors:
+            for v in range(3):
+                if node.data[v] not in triangles[i]:
+                    node.neighbors[v] = i
+        # sort neighbors
+        node.costs = [1.0 for i in node.neighbors]
+
+    return graph
 
 
-    indices = [set([t.a, t.b, t.c]) for t in indices]
-    for t in indices:
-        [j for j in indices if ]
-        neighbors.append()
-#####################
+def traverse(graph:list, source, pivot, boundary):
+
+    node = graph[source]
+    if node.color is Color.white:
+        neighbors = [graph[n] for n in node.neighbors if n is not EMPTY]
+        for neighbor in neighbors:
+            if pivot in neighbor.data:
+                # new pivot
+                if EMPTY in neighbor.neighbors:
+                    i = neighbor.neighbors.index(EMPTY)
+                    possible_indices = [j for j in range(3) if j != i]
+                    pivot = possible_indices[0] if possible_indices[0] != pivot else possible_indices[1]
+                    #update pivot
+                boundary.append(graph[neighbor.id])
+                traverse(graph, neighbor.id, pivot, boundary)
+        node.color = Color.black
+
+def traverse_boundary(graph:list, source, pivot = None):
+    """Runs a BFS and compute graph size during the process"""
+
+    if pivot is None:
+        interior_vertex = graph[source].neighbors.index(EMPTY)
+        possible_vertices = [i for i in range(3) if i != interior_vertex]
+        pivot = possible_vertices[0]
+
+    for node in graph:
+        node.color = Color.white
+
+    boundary = []
+    traverse(graph, source, pivot, boundary)
+
+    return boundary
+
+def draw_boundary(filename: str):
+    vertices, indices = read_OFF(os.path.join(data_folder, filename))
+    graph = setup_graph(vertices, indices)
+
+    pioneer = None
+    for node in graph:
+        print(node.neighbors)
+        if EMPTY in node.neighbors:
+            pioneer = node.id
+            break
+    boundary = traverse_boundary(graph, pioneer)
+
+    incremental = []
+    for i in range(len(boundary)):
+        t = indices[boundary[i]]
+        incremental.append([t.a, t.b], [t.b, t.c], [t.a, t.c])
+        ax = plt.axes()
+        drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename[:-4]+ str(i) +"_boundary_triangles.eps")),
+                True, ax, vertices=points, segments=incremental)
+
+# def face_association_from_OFF(filename: str):
+#     vertices, indices = read_OFF(filename)
+#     triangle_connectivity = []
+#
+#     indices = [set([t.a, t.b, t.c]) for t in indices]
+#     for t in indices:
+#         neighbors = [j for j in indices if t.intersection(j) == 2]
+#         connectivity.append( t.index() )
+#         neighbors.append()
+# #####################
 
 def main(input_file, dimension = 2):
     dot_index = input_file.rfind(".")
@@ -111,5 +215,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.input_file == "all":
         rec_all_data(data_folder)
+    elif args.input_file == "soup.off":
+        draw_boundary(args.input_file)
+
     else:
         main(os.path.join(data_folder, args.input_file))
