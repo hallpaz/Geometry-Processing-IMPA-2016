@@ -2,13 +2,15 @@ import argparse
 import drawing
 import os
 import triangle
+import matplotlib.pyplot as plt
+import numpy as np
 
 from DataStructures import Vertex, Triangle, BoundingBox
 from data_structures import Node, Color
 
 
 data_folder = "data"
-images_folder = os.path.join("images", "boundary")
+images_folder = "images"
 
 BIG = 7777777
 EMPTY = -1
@@ -123,73 +125,79 @@ def setup_graph(vertices, indices):
         n.data = triangles[n.id]
     for node in graph:
         # current_vertices  = triangles[node.id]
-
-        neighbors = [index for index in range(num_of_triangles) if len(set(node.data).intersection(triangles[index])) == 2]
-
-        # puts neighbors in correct order (opposite side of vertex)
-        node.neighbors = [EMPTY, EMPTY, EMPTY]
-        for i in neighbors:
-            for v in range(3):
-                if node.data[v] not in triangles[i]:
-                    node.neighbors[v] = i
-        # sort neighbors
+        node.neighbors = [graph[index] for index in range(num_of_triangles) if len(set(node.data).intersection(triangles[index])) == 2]
         node.costs = [1.0 for i in node.neighbors]
 
+    print(len(graph))
     return graph
 
 
-def traverse(graph:list, source, pivot, boundary):
-
-    node = graph[source]
-    if node.color is Color.white:
-        neighbors = [graph[n] for n in node.neighbors if n is not EMPTY]
-        for neighbor in neighbors:
-            if pivot in neighbor.data:
-                # new pivot
-                if EMPTY in neighbor.neighbors:
-                    i = neighbor.neighbors.index(EMPTY)
-                    possible_indices = [j for j in range(3) if j != i]
-                    pivot = possible_indices[0] if possible_indices[0] != pivot else possible_indices[1]
-                    #update pivot
-                boundary.append(graph[neighbor.id])
-                traverse(graph, neighbor.id, pivot, boundary)
-        node.color = Color.black
+def isOnBoundary(node):
+    if len(node.neighbors) < 3:
+        return True
+    return False
 
 def traverse_boundary(graph:list, source, pivot = None):
     """Runs a BFS and compute graph size during the process"""
 
     if pivot is None:
-        interior_vertex = graph[source].neighbors.index(EMPTY)
-        possible_vertices = [i for i in range(3) if i != interior_vertex]
-        pivot = possible_vertices[0]
+        pivot = source.data[0]
+        if pivot in source.neighbors[0].data and pivot in source.neighbors[1].data:
+            pivot = source.data[1]
 
     for node in graph:
         node.color = Color.white
 
     boundary = []
-    traverse(graph, source, pivot, boundary)
+    stack = []
+    stack.append(source)
+    boundary.append(source)
+    while(stack):
+        node = stack.pop()
+        if node.color is not Color.black:
+            for neighbor in node.neighbors:
+                if neighbor.color is not Color.black:
+                    if pivot in neighbor.data:
+                        print("in", pivot, neighbor.data)
+                        boundary.append(neighbor)
+                        stack.append(neighbor)
+                        if isOnBoundary(neighbor):
+                            # neighbor is on the boundary
+                            pivot = [newpivot for newpivot in neighbor.data if newpivot not in node.data][0]
+                            #update pivot
+                        break
+                    else:
+                        print(pivot, neighbor.data, node.data)
+
+            node.color = Color.black
+        else:
+            print("black node")
 
     return boundary
 
 def draw_boundary(filename: str):
     vertices, indices = read_OFF(os.path.join(data_folder, filename))
     graph = setup_graph(vertices, indices)
+    points = np.array([(v.x, v.y) for v in vertices])
 
     pioneer = None
     for node in graph:
-        print(node.neighbors)
-        if EMPTY in node.neighbors:
-            pioneer = node.id
+        #print(node.neighbors)
+        if isOnBoundary(node):
+            pioneer = node
             break
     boundary = traverse_boundary(graph, pioneer)
-
+    print(len(boundary))
     incremental = []
+    all_triangles = [b.data for b in boundary]
     for i in range(len(boundary)):
-        t = indices[boundary[i]]
-        incremental.append([t.a, t.b], [t.b, t.c], [t.a, t.c])
+        t = boundary[i].data
+        incremental.append((t[0], t[1]))
+        incremental.append((t[1], t[2]))
+        incremental.append((t[0], t[2]))
         ax = plt.axes()
-        drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename[:-4]+ str(i) +"_boundary_triangles.eps")),
-                True, ax, vertices=points, segments=incremental)
+        drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename[:-4]+ str(i) +"_boundary_triangles.png")),
+                True, ax, vertices=points, segments=incremental, triangles=all_triangles)
 
 # def face_association_from_OFF(filename: str):
 #     vertices, indices = read_OFF(filename)
