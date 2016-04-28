@@ -44,7 +44,7 @@ def surface(vertex):
 
 def surface_gradient(vertex):
     x, y, z = vertex.x, vertex.y, vertex.z
-    return Vertex((2*x*(2*x**2 - 5), 2*y*(2*y**2 - 5), 2*z*(2*z**2 - 5)))
+    return Vertex(2*x*(2*x**2 - 5), 2*y*(2*y**2 - 5), 2*z*(2*z**2 - 5) )
 
 
 def compute_normal(triangle_vertices):
@@ -53,18 +53,40 @@ def compute_normal(triangle_vertices):
     normal = Vertex.cross(v1, v2).normalize()
     return normal
 
-def project_on_surface(vertex, normal, surface):
-    t = 0.1
-    a = surface(vertex)
-    b = surface(vertex + t*normal)
-    if a*b > 0 and abs(b) > abs(a):
-        #wrong direction
-        t = -t
-        b = surface(vertex + t*normal)
-    t = t/2
-    middle = surface(vertex + t*normal)
-    while(abs(middle) > 0.0001):
-        
+def projection_on_surface(vertex, normal, surface):
+    t = 1.0
+    begin = vertex
+    end = vertex + normal.scalar_mult(2)
+    a = surface(begin)
+    b = surface(end)
+    while a*b > 0:
+        print(a, b)
+        if abs(b) > abs(a):
+            #wrong direction
+            t = -t
+            end = vertex + t*normal
+            b = surface(end)
+        else:
+            t = 2*t
+            begin = end
+            end = vertex + t*normal
+            a = surface(begin)
+            b = surface(end)
+
+    middle = (begin + end)/2
+    c = surface(middle)
+    while(abs(c) > 0.0001):
+        print(c)
+        if c*a < 0:
+            end = middle
+        else:
+            begin = middle
+        a = surface(begin)
+        c = surface(middle)
+        middle = (end + begin)/2
+
+    return middle
+
 
 
 def mesh_refinement(triangles, vertices, indices_map, implicit_function, gradient, num_iterations = 1):
@@ -102,7 +124,7 @@ def mesh_refinement(triangles, vertices, indices_map, implicit_function, gradien
             refined_mesh.append(Triangle( index_of(v1), index_of(v2), index_of(v3)))
         triangles = refined_mesh
 
-        write_OFF(os.path.join(data_folder, "projetada" + str(i) + ".off"), vertices, triangles)
+        write_OFF(os.path.join(data_folder, "impliciti_project" + str(i) + ".off"), vertices, triangles)
     return refined_mesh, vertices, indices_map
 
 
@@ -126,8 +148,8 @@ def compute_vertex_normals(normals):
 
 def main(input_file, num_iterations=1):
     vertices, triangles = read_OFF(input_file)
-    vertices = [project(v) for v in vertices]
-
+    vertices = [projection_on_surface(v, surface_gradient(v).normalize(), surface) for v in vertices]
+    write_OFF(os.path.join(data_folder, "fixed.off"), vertices, triangles)
     indices_map = { str(v.x) + str(v.y) + str(v.z) : i for i in range(len(vertices)) for v in vertices }
     #mesh_refinement_into_sphere(triangles, vertices, indices_map, num_iterations)
     # triangles_normals = [compute_normal([ vertices[t.a, vertices[t.b], vertices[t.c]) for t in triangles]
@@ -135,7 +157,7 @@ def main(input_file, num_iterations=1):
     # for i in range(len(vertices)):
     #     triangle_numbers = [j for j in range(len(triangles)) if vertices[i] in [vertices[indices[j].a], vertices[indices[j].b], vertices[indices[j].c]]]
     #     vertex_normals.append(compute_vertex_normals([ normals[m] for m in triangle_numbers ] ))
-    mesh_refinement(triangles, vertices, vertex_normals, indices_map, surface, num_iterations)
+    mesh_refinement(triangles, vertices, indices_map, surface, surface_gradient, num_iterations)
 
 
 if __name__ == '__main__':
