@@ -301,17 +301,17 @@ def heuristic_reconstruction(points: list, filename = None):
 def simple_mean_curve_smoothing(points):
     if len(points) > 3:
         # python deals with negative indices as expected
-        return [points[i-1]/2 + points[(i+1)%len(points)]/2
-                    for i in range(len(points))]
+        return np.array([points[i-1]/2 + points[(i+1)%len(points)]/2
+                    for i in range(len(points))])
 
     return points
 
 def simple_mean_smoothing_curve_with_anchor_points(points, anchor_indices):
     if len(points) > 3:
         # python deals with negative indices as expected
-        return [points[i-1]/2 + points[(i+1)%len(points)]/2
+        return np.array([points[i-1]/2 + points[(i+1)%len(points)]/2
                 for i in range(len(points))
-                if i not in anchor_indices]
+                if i not in anchor_indices])
 
     return points
 
@@ -319,8 +319,8 @@ def simple_mean_smoothing_curve_with_anchor_points(points, anchor_indices):
 def laplacian_curve_smoothing(points):
     if len(points) > 3:
         # python deals with negative indices as expected
-        return [points[i-1]/4 + points[i]/2 + points[(i+1)%len(points)]/4
-                for i in range(len(points))]
+        return np.array([points[i-1]/4 + points[i]/2 + points[(i+1)%len(points)]/4
+                for i in range(len(points))])
 
     return points
 
@@ -328,8 +328,8 @@ def laplacian_curve_smoothing(points):
 def laplacian_smoothing_curve_with_anchor_points(points, anchor_indices):
     if len(points) > 3:
         # python deals with negative indices as expected
-        return [points[i-1]/4 + points[i]/2 + points[(i+1)%len(points)]/4
+        return np.array([points[i-1]/4 + points[i]/2 + points[(i+1)%len(points)]/4
                 for i in range(len(points))
-                if i not in anchor_indices]
+                if i not in anchor_indices])
 
     return points

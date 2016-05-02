@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 def draw_segments(points, filename, hold = False):
     if not points:
         return
-    
+
     t = turtle.Turtle()
     print("TURTLE")
 
@@ -77,7 +77,7 @@ def draw_points_set(points, filename, hold = False):
 
 def plot(ax, **kw):
 
-    #if 'draw_vertices' not in kw: vertices(ax, **kw)
+    vertices(ax, **kw)
     ax.axes.set_aspect('equal')
 
     if 'segments' in kw: segments(ax, **kw)
@@ -91,7 +91,7 @@ def plot(ax, **kw):
 def plot_and_save(fname, should_close, ax, **kw):
     plot(ax, **kw)
     #plt.savefig(fname, format='png', transparent=True)
-    plt.savefig(fname, format='eps', transparent=True)
+    plt.savefig(fname, format='png', transparent=True, bbox_inches='tight', pad_inches=0)
     if should_close:
         plt.close()
 
@@ -111,8 +111,8 @@ def segments(ax, **kw):
     verts = kw['vertices']
     segs = kw['segments']
     for beg, end in segs:
-        x0, y0 = verts[beg, :]
-        x1, y1 = verts[end, :]
+        x0, y0 = verts[beg,:]
+        x1, y1 = verts[end,:]
         ax.fill([x0, x1], [y0, y1],
                 facecolor='none', edgecolor= kw['segments_color'] if 'segments_color' in kw else 'r', linewidth=1,
                 zorder=0)

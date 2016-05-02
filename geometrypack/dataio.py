@@ -17,13 +17,13 @@ def read_OFF(off_file):
 
         for i in range(int(parameters[0])):
             coordinates = modelfile.readline().split()
-            vertexBuffer.append(np.array([float(coordinates[0]), float(coordinates[1]), float(coordinates[2])]))
+            vertexBuffer.append([float(coordinates[0]), float(coordinates[1]), float(coordinates[2])])
 
         for i in range(int(parameters[1])):
             indices = modelfile.readline().split()
-            indexBuffer.append(np.array([int(indices[1]), int(indices[2]), int(indices[3])]))
+            indexBuffer.append([int(indices[1]), int(indices[2]), int(indices[3])])
 
-    return vertexBuffer, indexBuffer
+    return np.array(vertexBuffer), np.array(indexBuffer)
 
 # receives a list of vertices and a list of indices (both as numpy arrays)
 def write_OFF(output_file, vertices, indices):
@@ -49,13 +49,13 @@ def read_points(filename: str):
             content = line.split()
             content = [float(n) for n in content]
             # each element is a numpy array
-            points.append(np.array(content))
-    return points
+            points.append(content)
+    return np.array(points)
 
 
 #points is a list of numpy arrays
 def write_points(points:list, filename:str):
-    if not points:
+    if len(points) == 0:
         return None
     with open(filename, "w") as myfile:
         for point in points:
