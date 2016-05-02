@@ -1,20 +1,21 @@
-import turtle 
+import turtle
 import matplotlib.pyplot as plt
 
+# points is a lis of numpy arrays
 def draw_segments(points, filename, hold = False):
     if not points:
         return
-    print("HOP 2")
+    
     t = turtle.Turtle()
-    print("HOP 3")
+    print("TURTLE")
+
     t.penup()
     t.goto(points[0][0], points[0][1])
     t.pendown()
-    print("HOP 4")
     for point in points[1:]:
         t.goto(point[0], point[1])
     t.goto(points[0][0], points[0][1])
-    print("HOP 5")
+
     ts = t.getscreen()
 
     ts.getcanvas().postscript(file=filename)
@@ -76,7 +77,7 @@ def draw_points_set(points, filename, hold = False):
 
 def plot(ax, **kw):
 
-    #vertices(ax, **kw)
+    #if 'draw_vertices' not in kw: vertices(ax, **kw)
     ax.axes.set_aspect('equal')
 
     if 'segments' in kw: segments(ax, **kw)
@@ -89,8 +90,8 @@ def plot(ax, **kw):
 
 def plot_and_save(fname, should_close, ax, **kw):
     plot(ax, **kw)
-    #plt.savefig(fname, format='eps', transparent=True)
-    plt.savefig(fname, format='png', transparent=True, bbox_inches='tight', pad_inches=0)
+    #plt.savefig(fname, format='png', transparent=True)
+    plt.savefig(fname, format='eps', transparent=True)
     if should_close:
         plt.close()
 
@@ -113,7 +114,7 @@ def segments(ax, **kw):
         x0, y0 = verts[beg, :]
         x1, y1 = verts[end, :]
         ax.fill([x0, x1], [y0, y1],
-                facecolor='none', edgecolor= kw['segments_color'] if 'segments_color' in kw else 'r', linewidth=2,
+                facecolor='none', edgecolor= kw['segments_color'] if 'segments_color' in kw else 'r', linewidth=1,
                 zorder=0)
 
 def triangles(ax, **kw):
