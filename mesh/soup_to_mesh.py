@@ -146,6 +146,7 @@ def traverse_boundary(graph:list, source, pivot = None):
             pivot = source.data[1]
 
     boundary = []
+    boundary_indices = [pivot]
     stack = []
     stack.append(source)
     boundary.append(source)
@@ -161,6 +162,7 @@ def traverse_boundary(graph:list, source, pivot = None):
                         if isOnBoundary(neighbor):
                             # neighbor is on the boundary
                             pivot = [newpivot for newpivot in neighbor.data if newpivot not in node.data][0]
+                            boundary_indices.append(pivot)
                             #update pivot
                         break
                     else:
@@ -170,8 +172,20 @@ def traverse_boundary(graph:list, source, pivot = None):
         else:
             print("black node")
 
-    return boundary
+    return boundary, boundary_indices
 
+
+def write_to_file(points:list, filename:str):
+    if not points:
+        return None
+    with open(filename, "w") as myfile:
+        for point in points:
+            if len(point) == 2:
+                myfile.write("{} {}\n".format(point[0], point[1]))
+            elif len(point) == 3:
+                myfile.write("{} {} {}\n".format(point[0], point[1], point[3]))
+            else:
+                raise Exception("Points should have dimension 2 or 3")
 
 def draw_boundary(filename: str):
     vertices, indices = read_OFF(os.path.join(data_folder, filename))
@@ -192,8 +206,11 @@ def draw_boundary(filename: str):
                 pioneer = node
                 should_continue = True
                 break
+
         if should_continue:
-            boundary = traverse_boundary(graph, pioneer)
+            boundary, boundary_indices = traverse_boundary(graph, pioneer)
+            boundary_points = [points[i] for i in boundary_indices]
+            write_to_file(boundary_points, "fronteira" + str(k) + ".txt")
             print(len(boundary))
             incremental = []
             all_triangles = [b.data for b in boundary]
