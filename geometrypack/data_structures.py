@@ -2,9 +2,9 @@ import math
 from enum import Enum
 
 class Color(Enum):
-    white = 1
-    gray = 2
-    black = 3
+    White = 1
+    Gray = 2
+    Black = 3
 
 class Node:
     def __init__(self, identifier = None):
@@ -12,7 +12,7 @@ class Node:
         self.costs = []
         self.id = identifier
         self.parent = None
-        self.color = Color.white
+        self.color = Color.White
         self.weight = float("inf")
 
     def __str__(self):

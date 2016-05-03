@@ -1,3 +1,6 @@
+import numpy as np
+from collections import deque
+from .data_structures import Color
 
 
 def mesh_refinement_into_sphere(triangles, vertices, indices_map, num_iterations = 1):
@@ -118,3 +121,45 @@ def mesh_refinement(triangles, vertices, indices_map, implicit_function, gradien
 
         write_OFF(os.path.join(data_folder, "impliciti_project" + str(i) + ".off"), vertices, triangles)
     return refined_mesh, vertices, indices_map
+
+
+########################### Fuctions for Meshes #############################
+
+def simple_mesh_smoothing(points, graph, anchor_indices = []):
+    if len(points) > 3:
+        # initialization
+        for node in graph:
+            if node.id in anchor_indices:
+                node.color = Color.Black
+            else:
+                node.color = Color.White
+        # initialize a list with the same length as points
+        smoothed_points = [None for i in range(len(points))]
+        # anchored
+        for index in anchor_indices:
+            smoothed_points[index] = points[index]
+
+        queue = deque()
+        for p in graph:
+            if p.color is Color.White:
+                queue.append(p)
+                while(queue):
+                    node = queue.popleft()
+                    i = 0
+                    newvalue = np.array([0 for i in range(len(node.value))])
+                    for n in node.neighbors:
+                        i += 1
+                        newvalue = newvalue + points[n.id]#n.value
+                        if n.color is Color.White:
+                            # mark as 'in progress'
+                            n.color = Color.Gray
+                            queue.append(n)
+                    # take the mean
+                    newvalue /= i
+                    smoothed_points[node.id] = newvalue
+                    # mark as 'finished'
+                    node.color = Color.Black
+
+        return np.array(smoothed_points)
+
+    return np.array(points)

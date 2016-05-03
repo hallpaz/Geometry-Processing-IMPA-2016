@@ -209,6 +209,10 @@ def draw_boundary(filename: str):
 
         if should_continue:
             boundary, boundary_indices = traverse_boundary(graph, pioneer)
+            with open("boundary_indices.txt", "a") as boundary_file:
+                for index in boundary_indices:
+                    boundary_file.write("{}\n".format(index))
+
             boundary_points = [points[i] for i in boundary_indices]
             write_to_file(boundary_points, "fronteira" + str(k) + ".txt")
             print(len(boundary))
@@ -251,7 +255,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.input_file == "all":
         rec_all_data(data_folder)
-    elif args.input_file == "soup.off":
+    elif args.input_file == "taubin.off":
         draw_boundary(args.input_file)
 
     else:

@@ -77,7 +77,7 @@ def draw_points_set(points, filename, hold = False):
 
 def plot(ax, **kw):
 
-    vertices(ax, **kw)
+    #vertices(ax, **kw)
     ax.axes.set_aspect('equal')
 
     if 'segments' in kw: segments(ax, **kw)
