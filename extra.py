@@ -220,3 +220,94 @@ if __name__ == '__main__':
 
     else:
         main(os.path.join(data_folder, args.input_file))
+
+
+
+
+
+def mesh_refinement(triangles, vertices, indices_map, implicit_function, gradient, num_iterations = 1):
+    def index_of(vertex):
+        key = str(vertex.x) + str(vertex.y) + str(vertex.z)
+        if key in indices_map:
+            return indices_map[key]
+        else:
+            index = len(indices_map)
+            vertices.append(vertex)
+            indices_map[key] = index
+            return index
+
+    refined_mesh = []
+    for i in range(num_iterations):
+        for t in triangles:
+            # normalization to put over the unit sphere
+            v1 = ((vertices[t.a] + vertices[t.b])/2)
+            v2 = ((vertices[t.b] + vertices[t.c])/2)
+            v3 = ((vertices[t.a] + vertices[t.c])/2)
+
+            n1 = gradient(v1).normalize()
+            n2 = gradient(v2).normalize()
+            n3 = gradient(v3).normalize()
+
+            #projection
+            v1 = projection_on_surface(v1, n1, implicit_function)
+            v2 = projection_on_surface(v2, n2, implicit_function)
+            v3 = projection_on_surface(v3, n3, implicit_function)
+
+            refined_mesh.append(Triangle( t.a, index_of(v1), index_of(v3)))
+            refined_mesh.append(Triangle( t.b, index_of(v2), index_of(v1)))
+            refined_mesh.append(Triangle( t.c, index_of(v3), index_of(v2)))
+            refined_mesh.append(Triangle( index_of(v1), index_of(v2), index_of(v3)))
+        triangles = refined_mesh
+
+        write_OFF(os.path.join(data_folder, "surface_" + str(3) + ".off"), vertices, triangles)
+    return refined_mesh, vertices, indices_map
+
+
+def projection_on_surface(vertex, normal, surface):
+    t = 0.01
+    begin = vertex
+    end = vertex + normal.scalar_mult(2)
+    a = surface(begin)
+    b = surface(end)
+    i = 0
+    print('iniciou: ' + str(t))
+    while a*b > 0:
+        print(a, b)
+        if abs(b) > abs(a):
+            #wrong direction
+            t = -t
+            #print("inverteu: " + str(t))
+            end = begin + normal.scalar_mult(t)
+            b = surface(end)
+        else:
+            if t > 0:
+                t += 0.1
+
+            #print("dobrou: " + str(t))
+            begin = end
+            end = vertex + normal.scalar_mult(t)
+            a = surface(begin)
+            b = surface(end)
+        i += 1
+        if i > 30:
+            #exit()
+            if abs(surface(begin)) < abs(surface(vertex)):
+                return begin
+            elif abs(surface(end)) < abs(surface(vertex)):
+                return end
+            else:
+                return vertex
+
+    middle = (begin + end)/2
+    c = surface(middle)
+    while(abs(c) > projection_aproximation_tolerance):
+        #print(c)
+        if c*a < 0:
+            end = middle
+        else:
+            begin = middle
+        a = surface(begin)
+        middle = (end + begin)/2
+        c = surface(middle)
+
+    return middle

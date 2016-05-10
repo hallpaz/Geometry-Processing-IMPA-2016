@@ -40,6 +40,34 @@ def write_OFF(output_file, vertices, indices):
         '''%(len(str_vertices),len(str_indices), "".join(str_vertices), "".join(str_indices)))
 
 
+
+def write_PLY(output_file, vertices, indices, normals):
+
+    str_vertices = ["{} {} {}".format(v[0], v[1], v[2]) for v in vertices]
+    str_indices = ["3 {} {} {}\n".format(i[0], i[1], i[2]) for i in indices]
+    str_normals = ["{} {} {}\n".format(n[0], n[1], n[2]) for n in normals]
+
+    str_vertices = [ "{} {}".format(str_vertices[i], str_normals[i]) for i in range(len(vertices)) ]
+
+    with open(output_file,"w") as meshfile:
+        meshfile.write('''ply
+    format ascii 1.0
+    comment VCGLIB generated
+    element vertex {0}
+    property float x
+    property float y
+    property float z
+    property float nx
+    property float ny
+    property float nz
+    element face {1}
+    property list uchar int vertex_indices
+    end_header
+{2}
+{3}
+'''.format(len(str_vertices), len(str_indices), ''.join(str_vertices), ''.join(str_indices)))
+
+
 # returns a list of numpy arrays
 def read_points(filename: str):
     points = []
