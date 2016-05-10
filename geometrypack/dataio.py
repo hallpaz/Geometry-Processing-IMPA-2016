@@ -31,7 +31,7 @@ def write_OFF(output_file, vertices, indices):
 
     # converts indices and vertices to a string representation
     str_vertices = ["{} {} {}\n".format(v[0], v[1], v[2]) for v in vertices]
-    str_indices = ["{} {} {}\n".format(i[0], i[1], i[2]) for i in indices]
+    str_indices = ["3 {} {} {}\n".format(i[0], i[1], i[2]) for i in indices]
     with open(output_file, 'w') as meshfile:
         meshfile.write(
         '''OFF
