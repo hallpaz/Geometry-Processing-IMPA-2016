@@ -1,3 +1,4 @@
+import heapq
 import math
 from enum import Enum
 
@@ -176,3 +177,38 @@ class GridCell:
 
     def __repr__(self):
         return "cell"
+
+# ------------------------------------------------------------------
+# Priority Queue implementation from Python docs
+class MinPriorityQueue():
+    REMOVED = '<removed-point>'      # placeholder for a removed point
+    counter = 0     # unique sequence count
+
+    def __init__(self):
+        self.data = []
+        self.entry_finder = {} # mapping of points to entries
+
+    def add_point(self, point, priority=0):
+        'Add a new point or update the priority of an existing point'
+        if point in self.entry_finder:
+            self.remove_point(point)
+        count = MinPriorityQueue.counter
+        MinPriorityQueue.counter += 1
+        entry = [priority, count, point]
+        self.entry_finder[point] = entry
+        #print(self.data, entry)
+        heapq.heappush(self.data, entry)
+
+    def remove_point(self, point):
+        'Mark an existing point as REMOVED.  Raise KeyError if not found.'
+        entry = self.entry_finder.pop(point)
+        entry[-1] = MinPriorityQueue.REMOVED
+
+    def pop_point(self):
+        'Remove and return the lowest priority point. Raise KeyError if empty.'
+        while self.data:
+            priority, count, point = heapq.heappop(self.data)
+            if point is not MinPriorityQueue.REMOVED:
+                del self.entry_finder[point]
+                return (priority, point)
+        raise KeyError('pop from an empty priority queue')

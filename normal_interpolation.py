@@ -5,15 +5,13 @@ import numpy as np
 import math
 import random
 
+from geometrypack.algorithms import normalize
 from geometrypack.parametric_functions import cylinder
 from geometrypack.dataio import read_OFF, write_OFF, write_PLY
 
 
-def normalize(v):
-    norm=np.linalg.norm(v)
-    if norm < 0.00001:
-       return v
-    return v/norm
+data_folder = os.path.join("data", "meshes")
+results_folder = os.path.join("results", "normal_interpolation")
 
 def sample_cylinder_points(meridians, parallels, height=1):
     inc_height = height/parallels
@@ -23,7 +21,7 @@ def sample_cylinder_points(meridians, parallels, height=1):
     while(h <= height):
         angle = 0
         for m in range(meridians):
-            vertices.append(cylinder( angle, h ))
+            vertices.append(cylinder( angle + random.gauss(0, inc_rad/7), h + random.uniform(h-inc_height/3, h+inc_height/3) ))
             angle += inc_rad
         h+= inc_height
 
@@ -43,7 +41,7 @@ def write_regular_cylinder_mesh():
 
     indices = np.array(indices)
 
-    write_OFF("cylinder{}_{}_regular.off".format(meridians, parallels), vertices, indices)
+    write_OFF("noisecylinder{}_{}_regular.off".format(meridians, parallels), vertices, indices)
     print("OFF escrito")
 
 def write_alternate_flip_cylinder_mesh():
@@ -64,7 +62,7 @@ def write_alternate_flip_cylinder_mesh():
 
     indices = np.array(indices)
 
-    write_OFF("cylinder{}_{}_alternateflip.off".format(meridians, parallels), vertices, indices)
+    write_OFF("noisecylinder{}_{}_alternateflip.off".format(meridians, parallels), vertices, indices)
     print("OFF escrito")
 
 def write_random_flip_cylinder_mesh():
@@ -86,7 +84,7 @@ def write_random_flip_cylinder_mesh():
 
     indices = np.array(indices)
 
-    write_OFF("cylinder{}_{}_randomflip.off".format(meridians, parallels), vertices, indices)
+    write_OFF("noisecylinder{}_{}_randomflip.off".format(meridians, parallels), vertices, indices)
     print("OFF escrito")
 
 def main():
@@ -95,6 +93,10 @@ def main():
     print("vai escrever")
     write_OFF("cylinder_150_100_delaunay.off", vertices, indices)
 
+def create_data():
+    write_regular_cylinder_mesh()
+    write_alternate_flip_cylinder_mesh()
+    write_random_flip_cylinder_mesh()
 
 
 #calcula a normal para cada triângulo
@@ -102,8 +104,10 @@ def main():
 # faça uma média ponderara dos valores da normal de cada triângulo que contém
 # o vértice para enontrar a normal do vertice
 
-def interpolate_normals(filename, method):
-    vertices, indices = read_OFF(filename)
+def interpolate_normals(filepath):
+    vertices, indices = read_OFF(filepath)
+    filename = os.path.basename(filepath)
+    filename = filename[:-4]
     print("BEGIN", vertices[0], vertices[-1])
     print("will compute neighbohood")
     # neighborhood[i] é uma lista que contém os índices de todos os triângulos
@@ -212,29 +216,32 @@ def interpolate_normals(filename, method):
         normal = normalize(normal)
         return normal
 
-    # print("will begin mean method")
-    # normals = [mean_interpolation(index) for index in range(len(vertices)) ]
-    # print(normals[0])
-    # print("Will write results")
-    # write_PLY('regular_mean.ply', vertices, indices, normals)
-    #
-    #
-    # print("will begin area method")
-    # normals = [area_interpolation(index) for index in range(len(vertices)) ]
-    # print("Will write results")
-    # write_PLY('regular_area.ply', vertices, indices, normals)
-    #
-    # print("will begin barycentric method")
-    # normals = [barycentric_area_interpolation(index) for index in range(len(vertices)) ]
-    # print("Will write results")
-    # write_PLY('regular_barycentric.ply', vertices, indices, normals)
+    print("will begin mean method")
+    normals = [mean_interpolation(index) for index in range(len(vertices)) ]
+    print(normals[0])
+    print("Will write results")
+    write_PLY(os.path.join(results_folder, '{}_mean.ply'.format(filename)), vertices, indices, normals)
+
+
+    print("will begin area method")
+    normals = [area_interpolation(index) for index in range(len(vertices)) ]
+    print("Will write results")
+    write_PLY(os.path.join(results_folder, '{}_area.ply'.format(filename)), vertices, indices, normals)
+
+    print("will begin barycentric method")
+    normals = [barycentric_area_interpolation(index) for index in range(len(vertices)) ]
+    print("Will write results")
+    write_PLY(os.path.join(results_folder, '{}_barycentric.ply'.format(filename)), vertices, indices, normals)
 
     print("will begin angle method")
     normals = [angle_interpolation(index) for index in range(len(vertices)) ]
     print("Will write results")
-    write_PLY('regular_angle.ply', vertices, indices, normals)
+    write_PLY(os.path.join(results_folder, '{}_angle.ply'.format(filename)), vertices, indices, normals)
 
-
+def rec_all_data(folder):
+    filenames = [fname for fname in os.listdir(folder) if fname.endswith('.off')]
+    for fname in filenames:
+        interpolate_normals(os.path.join(folder, fname))
 
 if __name__ == '__main__':
     # main()
@@ -242,4 +249,6 @@ if __name__ == '__main__':
     # write_alternate_flip_cylinder_mesh()
     # write_random_flip_cylinder_mesh()
 
-    interpolate_normals("data/meshes/cylinder150_100_regular.off", "mean")
+    #create_data()
+    rec_all_data(data_folder)
+    #interpolate_normals("data/meshes/cylinder150_100_regular.off")

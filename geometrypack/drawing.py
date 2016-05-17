@@ -75,6 +75,33 @@ def draw_points_set(points, filename, hold = False):
         pass
 
 
+def draw_closed_curve(points, filename = None, hold = False):
+    #print("de novo nao")
+    t = turtle.Turtle()
+    ts = t.getscreen()
+    #print("sjkjsd")
+    #height = ts.canvheight
+    t.penup()
+    t.goto(points[0][0], points[0][1])
+    t.pendown()
+    for p in points:
+        t.color("black")
+        t.dot()
+        t.color("green")
+        t.goto(p[0], p[1])
+    t.goto(points[0][0], points[0][1])
+    t.penup()
+
+    if filename is not None:
+        ts.getcanvas().postscript(file=filename)
+
+    if hold:
+        ts.mainloop()
+    try:
+        ts.clear()
+    except Exception as e:
+        pass
+
 def plot(ax, **kw):
 
     #vertices(ax, **kw)
