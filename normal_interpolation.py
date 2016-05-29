@@ -13,7 +13,10 @@ from geometrypack.dataio import read_OFF, write_OFF, write_PLY
 data_folder = os.path.join("data", "meshes")
 results_folder = os.path.join("results", "normal_interpolation")
 
-def sample_cylinder_points(meridians, parallels, height=1):
+meridians = 30
+parallels = 20
+
+def sample_cylinder_points(meridians, parallels, height=2, noise = False):
     inc_height = height/parallels
     inc_rad = 2*math.pi/meridians
     vertices = []
@@ -21,18 +24,22 @@ def sample_cylinder_points(meridians, parallels, height=1):
     while(h <= height):
         angle = 0
         for m in range(meridians):
-            vertices.append(cylinder( angle + random.gauss(0, inc_rad/7), h + random.uniform(h-inc_height/3, h+inc_height/3) ))
+            if noise:
+                vertices.append(cylinder( angle + random.gauss(0, inc_rad/7), h + random.uniform(h-inc_height/3, h+inc_height/3) ))
+            else:
+                vertices.append(cylinder( angle, h))
             angle += inc_rad
         h+= inc_height
 
     return vertices
 
-def write_regular_cylinder_mesh():
-    meridians = 150
-    parallels = 100
+def cylinder_analytic_normal(vertex):
+    return normalize(np.array([2*vertex[0], 2*vertex[1], 0]))
+
+def write_regular_cylinder_mesh(noise = False):
     height = 2
 
-    vertices = sample_cylinder_points(meridians, parallels, height)
+    vertices = sample_cylinder_points(meridians, parallels, height, noise)
     indices = []
     for p in range(parallels-1):
         for m in range(meridians):
@@ -40,16 +47,18 @@ def write_regular_cylinder_mesh():
             indices.append([p*meridians + (m+1)%meridians, (p+1)*meridians + (m+1)%meridians, (p+1)*meridians + m ]) #inferior
 
     indices = np.array(indices)
-
-    write_OFF("noisecylinder{}_{}_regular.off".format(meridians, parallels), vertices, indices)
+    if noise:
+        write_OFF(os.path.join(data_folder,
+            "noisecylinder{}_{}_regular.off".format(meridians, parallels)), vertices, indices)
+    else:
+        write_OFF(os.path.join(data_folder,
+            "cylinder{}_{}_regular.off".format(meridians, parallels)), vertices, indices)
     print("OFF escrito")
 
-def write_alternate_flip_cylinder_mesh():
-    meridians = 150
-    parallels = 100
+def write_alternate_flip_cylinder_mesh(noise = False):
     height = 2
 
-    vertices = sample_cylinder_points(meridians, parallels, height)
+    vertices = sample_cylinder_points(meridians, parallels, height, noise)
     indices = []
     for p in range(parallels-1):
         for m in range(meridians):
@@ -62,15 +71,18 @@ def write_alternate_flip_cylinder_mesh():
 
     indices = np.array(indices)
 
-    write_OFF("noisecylinder{}_{}_alternateflip.off".format(meridians, parallels), vertices, indices)
+    if noise:
+        write_OFF(os.path.join(data_folder,
+            "noisecylinder{}_{}_alternateflip.off".format(meridians, parallels)), vertices, indices)
+    else:
+        write_OFF(os.path.join(data_folder,
+            "cylinder{}_{}_alternateflip.off".format(meridians, parallels)), vertices, indices)
     print("OFF escrito")
 
-def write_random_flip_cylinder_mesh():
-    meridians = 150
-    parallels = 100
+def write_random_flip_cylinder_mesh(noise = False):
     height = 2
 
-    vertices = sample_cylinder_points(meridians, parallels, height)
+    vertices = sample_cylinder_points(meridians, parallels, height, noise)
     indices = []
     for p in range(parallels-1):
         for m in range(meridians):
@@ -84,32 +96,32 @@ def write_random_flip_cylinder_mesh():
 
     indices = np.array(indices)
 
-    write_OFF("noisecylinder{}_{}_randomflip.off".format(meridians, parallels), vertices, indices)
+    if noise:
+        write_OFF(os.path.join(data_folder,
+            "noisecylinder{}_{}_randomflip.off".format(meridians, parallels)), vertices, indices)
+    else:
+        write_OFF(os.path.join(data_folder,
+            "cylinder{}_{}_randomflip.off".format(meridians, parallels)), vertices, indices)
     print("OFF escrito")
 
 def main():
-    vertices = sample_cylinder_points(150, 100, 2)
+    vertices = sample_cylinder_points(meridians, parallels, 2)
     indices = []
-    print("vai escrever")
-    write_OFF("cylinder_150_100_delaunay.off", vertices, indices)
+    print("will write points for Delaunay")
+    write_OFF("cylinder_{}_{}_delaunay.off".format(meridians, parallels), vertices, indices)
 
 def create_data():
+
     write_regular_cylinder_mesh()
     write_alternate_flip_cylinder_mesh()
     write_random_flip_cylinder_mesh()
 
+    write_regular_cylinder_mesh(True)
+    write_alternate_flip_cylinder_mesh(True)
+    write_random_flip_cylinder_mesh(True)
 
-#calcula a normal para cada triângulo
-# para cada vértice, identifique todos os triângulos que possuem esse vértice
-# faça uma média ponderara dos valores da normal de cada triângulo que contém
-# o vértice para enontrar a normal do vertice
 
-def interpolate_normals(filepath):
-    vertices, indices = read_OFF(filepath)
-    filename = os.path.basename(filepath)
-    filename = filename[:-4]
-    print("BEGIN", vertices[0], vertices[-1])
-    print("will compute neighbohood")
+def compute_neighborhood(vertices, indices):
     # neighborhood[i] é uma lista que contém os índices de todos os triângulos
     # que contém o vértice i
     neighborhood = [ [] for i in range(len(vertices)) ]
@@ -120,8 +132,19 @@ def interpolate_normals(filepath):
         neighborhood[t[1]].append(index)
         neighborhood[t[2]].append(index)
 
+    return neighborhood
+# calcula a normal para cada triângulo
+# para cada vértice, identifique todos os triângulos que possuem esse vértice
+# faça uma média ponderara dos valores da normal de cada triângulo que contém
+# o vértice para enontrar a normal do vertice
+def interpolate_normals(filepath, compute_analytic_normal, should_colorize = False):
+    vertices, indices = read_OFF(filepath)
+    filename = os.path.basename(filepath)
+    filename = filename[:-4]
+    print("BEGIN", vertices[0], vertices[-1])
+    print("will compute neighbohood")
+    neighborhood = compute_neighborhood(vertices, indices)
     print("computed neighborhood")
-
     # triangle is a list of 3 numpy array
     def compute_normal(triangle_index):
         t = indices[triangle_index]
@@ -174,6 +197,7 @@ def interpolate_normals(filepath):
 
     def compute_angle(triangle_index, pivot_index):
         local_index = 0
+        t = indices[triangle_index]
         for i in t:
             if i == pivot_index:
                 break
@@ -187,11 +211,31 @@ def interpolate_normals(filepath):
         angle = np.arccos(np.clip(c, -1, 1)) # if you really want the angle
         return angle
 
+    # def colorize(analyticnormal, estimatednormal, minimum, maximum):
+    #     error = np.linalg.norm(np.cross(np.array(analyticnormal), np.array(estimatednormal)))
+    #     error = (error - minimum)/(maximum-minimum)
+    #     return colorize(error)
+
+    def colorize(value):
+        import math
+        if(math.isnan(value)):
+            print("xabu")
+            exit()
+        if value < 0.25:
+            return (0, int(4.0*value*255), 255)
+        elif value < 0.50:
+            return (0, 255, int((2.0-4.0*value)*255))
+        elif value < 0.75:
+            return (int((4.0*value-2.0)*255), 255, 0)
+        else:
+            return(255, int((4.0-4.0*value)*255), 0)
+
     #compute the normal at vertex 'vertex_index' by simple average
     def mean_interpolation(vertex_index):
         normal = np.array([0, 0, 0]) #will accumulate
         for triangle_index in neighborhood[vertex_index]:
             normal = normal + compute_normal(triangle_index)
+        print(len(neighborhood[vertex_index]))
         normal = normalize(normal/len(neighborhood[vertex_index]))
         return normal
 
@@ -216,32 +260,64 @@ def interpolate_normals(filepath):
         normal = normalize(normal)
         return normal
 
+    expected_normals = [compute_analytic_normal(vertices[index]) for index in range(len(vertices))]
     print("will begin mean method")
     normals = [mean_interpolation(index) for index in range(len(vertices)) ]
-    print(normals[0])
     print("Will write results")
-    write_PLY(os.path.join(results_folder, '{}_mean.ply'.format(filename)), vertices, indices, normals)
+    if should_colorize:
+        raw_errors = [np.linalg.norm(np.cross(expected_normals[i], np.array(normals[i]))) for i in range(len(normals))]
+        #colors = [colorize(expected_normals[index], normals[index]) for index in range(len(vertices))]
+        minimum = min(raw_errors)
+        maximum = max(raw_errors)
+        colors = [colorize((error-minimum)/(maximum-minimum)) for error in raw_errors]
+        write_PLY(os.path.join(results_folder, '{}_color_mean.ply'.format(filename)), vertices, indices, normals, colors)
+    else:
+        write_PLY(os.path.join(results_folder, '{}_mean.ply'.format(filename)), vertices, indices, normals)
 
 
     print("will begin area method")
     normals = [area_interpolation(index) for index in range(len(vertices)) ]
     print("Will write results")
-    write_PLY(os.path.join(results_folder, '{}_area.ply'.format(filename)), vertices, indices, normals)
+    if should_colorize:
+        raw_errors = [np.linalg.norm(np.cross(np.array(expected_normals[i]), np.array(normals[i]))) for i in range(len(normals))]
+        #colors = [colorize(expected_normals[index], normals[index]) for index in range(len(vertices))]
+        minimum = min(raw_errors)
+        maximum = max(raw_errors)
+        colors = [colorize((error-minimum)/(maximum-minimum)) for error in raw_errors]
+        write_PLY(os.path.join(results_folder, '{}_color_area.ply'.format(filename)), vertices, indices, normals, colors)
+    else:
+        write_PLY(os.path.join(results_folder, '{}_area.ply'.format(filename)), vertices, indices, normals)
 
     print("will begin barycentric method")
     normals = [barycentric_area_interpolation(index) for index in range(len(vertices)) ]
     print("Will write results")
-    write_PLY(os.path.join(results_folder, '{}_barycentric.ply'.format(filename)), vertices, indices, normals)
+    if should_colorize:
+        raw_errors = [np.linalg.norm(np.cross(np.array(expected_normals[i]), np.array(normals[i]))) for i in range(len(normals))]
+        #colors = [colorize(expected_normals[index], normals[index]) for index in range(len(vertices))]
+        minimum = min(raw_errors)
+        maximum = max(raw_errors)
+        colors = [colorize((error-minimum)/(maximum-minimum)) for error in raw_errors]
+        write_PLY(os.path.join(results_folder, '{}_color_barycentric.ply'.format(filename)), vertices, indices, normals, colors)
+    else:
+        write_PLY(os.path.join(results_folder, '{}_barycentric.ply'.format(filename)), vertices, indices, normals)
 
     print("will begin angle method")
     normals = [angle_interpolation(index) for index in range(len(vertices)) ]
     print("Will write results")
-    write_PLY(os.path.join(results_folder, '{}_angle.ply'.format(filename)), vertices, indices, normals)
+    if should_colorize:
+        raw_errors = [np.linalg.norm(np.cross(np.array(expected_normals[i]), np.array(normals[i]))) for i in range(len(normals))]
+        #colors = [colorize(expected_normals[index], normals[index]) for index in range(len(vertices))]
+        minimum = min(raw_errors)
+        maximum = max(raw_errors)
+        colors = [colorize((error-minimum)/(maximum-minimum)) for error in raw_errors]
+        write_PLY(os.path.join(results_folder, '{}_color_angle.ply'.format(filename)), vertices, indices, normals, colors)
+    else:
+        write_PLY(os.path.join(results_folder, '{}_angle.ply'.format(filename)), vertices, indices, normals)
 
 def rec_all_data(folder):
     filenames = [fname for fname in os.listdir(folder) if fname.endswith('.off')]
     for fname in filenames:
-        interpolate_normals(os.path.join(folder, fname))
+        interpolate_normals(os.path.join(folder, fname), cylinder_analytic_normal, True)
 
 if __name__ == '__main__':
     # main()
@@ -249,6 +325,6 @@ if __name__ == '__main__':
     # write_alternate_flip_cylinder_mesh()
     # write_random_flip_cylinder_mesh()
 
-    #create_data()
+    create_data()
     rec_all_data(data_folder)
     #interpolate_normals("data/meshes/cylinder150_100_regular.off")
