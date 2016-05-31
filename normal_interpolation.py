@@ -8,13 +8,16 @@ import random
 from geometrypack.algorithms import normalize
 from geometrypack.parametric_functions import cylinder
 from geometrypack.dataio import read_OFF, write_OFF, write_PLY
+from geometrypack.meshes import compute_neighborhood
+from geometrypack.drawing import colorize
 
 
 data_folder = os.path.join("data", "meshes")
 results_folder = os.path.join("results", "normal_interpolation")
 
 meridians = 30
-parallels = 20
+parallels = 15
+height = 4
 
 def sample_cylinder_points(meridians, parallels, height=2, noise = False):
     inc_height = height/parallels
@@ -41,7 +44,7 @@ def write_regular_cylinder_mesh(noise = False):
 
     vertices = sample_cylinder_points(meridians, parallels, height, noise)
     indices = []
-    for p in range(parallels-1):
+    for p in range(parallels):
         for m in range(meridians):
             indices.append([p*meridians + m, p*meridians + (m+1)%meridians, (p+1)*meridians + m]) #superior
             indices.append([p*meridians + (m+1)%meridians, (p+1)*meridians + (m+1)%meridians, (p+1)*meridians + m ]) #inferior
@@ -60,7 +63,7 @@ def write_alternate_flip_cylinder_mesh(noise = False):
 
     vertices = sample_cylinder_points(meridians, parallels, height, noise)
     indices = []
-    for p in range(parallels-1):
+    for p in range(parallels):
         for m in range(meridians):
             if p%2 == 0:
                 indices.append([p*meridians + m, (p+1)*meridians + (m+1)%meridians, (p+1)*meridians + m]) #superior
@@ -84,7 +87,7 @@ def write_random_flip_cylinder_mesh(noise = False):
 
     vertices = sample_cylinder_points(meridians, parallels, height, noise)
     indices = []
-    for p in range(parallels-1):
+    for p in range(parallels):
         for m in range(meridians):
             k = random.randint(0, 1)
             if k%2 == 0:
@@ -121,27 +124,14 @@ def create_data():
     write_random_flip_cylinder_mesh(True)
 
 
-def compute_neighborhood(vertices, indices):
-    # neighborhood[i] é uma lista que contém os índices de todos os triângulos
-    # que contém o vértice i
-    neighborhood = [ [] for i in range(len(vertices)) ]
-    for index in range(len(indices)):
-        # t recebe os 3 indices do triangulo da posição 'index'
-        t = indices[index]
-        neighborhood[t[0]].append(index)
-        neighborhood[t[1]].append(index)
-        neighborhood[t[2]].append(index)
-
-    return neighborhood
 # calcula a normal para cada triângulo
 # para cada vértice, identifique todos os triângulos que possuem esse vértice
 # faça uma média ponderara dos valores da normal de cada triângulo que contém
 # o vértice para enontrar a normal do vertice
 def interpolate_normals(filepath, compute_analytic_normal, should_colorize = False):
     vertices, indices = read_OFF(filepath)
-    filename = os.path.basename(filepath)
-    filename = filename[:-4]
-    print("BEGIN", vertices[0], vertices[-1])
+    filename = os.path.splitext(os.path.basename(filepath))[0]
+    print("BEGIN", filepath)
     print("will compute neighbohood")
     neighborhood = compute_neighborhood(vertices, indices)
     print("computed neighborhood")
@@ -216,26 +206,13 @@ def interpolate_normals(filepath, compute_analytic_normal, should_colorize = Fal
     #     error = (error - minimum)/(maximum-minimum)
     #     return colorize(error)
 
-    def colorize(value):
-        import math
-        if(math.isnan(value)):
-            print("xabu")
-            exit()
-        if value < 0.25:
-            return (0, int(4.0*value*255), 255)
-        elif value < 0.50:
-            return (0, 255, int((2.0-4.0*value)*255))
-        elif value < 0.75:
-            return (int((4.0*value-2.0)*255), 255, 0)
-        else:
-            return(255, int((4.0-4.0*value)*255), 0)
-
     #compute the normal at vertex 'vertex_index' by simple average
     def mean_interpolation(vertex_index):
         normal = np.array([0, 0, 0]) #will accumulate
         for triangle_index in neighborhood[vertex_index]:
             normal = normal + compute_normal(triangle_index)
-        print(len(neighborhood[vertex_index]))
+        if len(neighborhood[vertex_index]) == 0:
+            print(vertex_index, "null neighboorhood")
         normal = normalize(normal/len(neighborhood[vertex_index]))
         return normal
 
@@ -260,19 +237,26 @@ def interpolate_normals(filepath, compute_analytic_normal, should_colorize = Fal
         normal = normalize(normal)
         return normal
 
-    expected_normals = [compute_analytic_normal(vertices[index]) for index in range(len(vertices))]
+    expected_normals = [compute_analytic_normal(v) for v in vertices]
     print("will begin mean method")
     normals = [mean_interpolation(index) for index in range(len(vertices)) ]
     print("Will write results")
+    folder = os.path.join(results_folder, filename)
+    os.makedirs(folder, 0o777, True)
     if should_colorize:
         raw_errors = [np.linalg.norm(np.cross(expected_normals[i], np.array(normals[i]))) for i in range(len(normals))]
         #colors = [colorize(expected_normals[index], normals[index]) for index in range(len(vertices))]
         minimum = min(raw_errors)
+        if minimum < 0.00000001:
+            minimum = 0.0
         maximum = max(raw_errors)
-        colors = [colorize((error-minimum)/(maximum-minimum)) for error in raw_errors]
-        write_PLY(os.path.join(results_folder, '{}_color_mean.ply'.format(filename)), vertices, indices, normals, colors)
+        #print(maximum, minimum)
+        if maximum - minimum > 0.1:
+            raw_errors = [(error-minimum)/(maximum-minimum) for error in raw_errors]
+        colors = [colorize(error) for error in raw_errors]
+        write_PLY(os.path.join(folder, '{}_color_mean.ply'.format(filename)), vertices, indices, normals, colors)
     else:
-        write_PLY(os.path.join(results_folder, '{}_mean.ply'.format(filename)), vertices, indices, normals)
+        write_PLY(os.path.join(folder, '{}_mean.ply'.format(filename)), vertices, indices, normals)
 
 
     print("will begin area method")
@@ -282,11 +266,16 @@ def interpolate_normals(filepath, compute_analytic_normal, should_colorize = Fal
         raw_errors = [np.linalg.norm(np.cross(np.array(expected_normals[i]), np.array(normals[i]))) for i in range(len(normals))]
         #colors = [colorize(expected_normals[index], normals[index]) for index in range(len(vertices))]
         minimum = min(raw_errors)
+        if minimum < 0.00000001:
+            minimum = 0.0
         maximum = max(raw_errors)
-        colors = [colorize((error-minimum)/(maximum-minimum)) for error in raw_errors]
-        write_PLY(os.path.join(results_folder, '{}_color_area.ply'.format(filename)), vertices, indices, normals, colors)
+        #print(maximum, minimum)
+        if maximum - minimum > 0.1:
+            raw_errors = [(error-minimum)/(maximum-minimum) for error in raw_errors]
+        colors = [colorize(error) for error in raw_errors]
+        write_PLY(os.path.join(folder, '{}_color_area.ply'.format(filename)), vertices, indices, normals, colors)
     else:
-        write_PLY(os.path.join(results_folder, '{}_area.ply'.format(filename)), vertices, indices, normals)
+        write_PLY(os.path.join(folder, '{}_area.ply'.format(filename)), vertices, indices, normals)
 
     print("will begin barycentric method")
     normals = [barycentric_area_interpolation(index) for index in range(len(vertices)) ]
@@ -295,11 +284,16 @@ def interpolate_normals(filepath, compute_analytic_normal, should_colorize = Fal
         raw_errors = [np.linalg.norm(np.cross(np.array(expected_normals[i]), np.array(normals[i]))) for i in range(len(normals))]
         #colors = [colorize(expected_normals[index], normals[index]) for index in range(len(vertices))]
         minimum = min(raw_errors)
+        if minimum < 0.00000001:
+            minimum = 0.0
         maximum = max(raw_errors)
-        colors = [colorize((error-minimum)/(maximum-minimum)) for error in raw_errors]
-        write_PLY(os.path.join(results_folder, '{}_color_barycentric.ply'.format(filename)), vertices, indices, normals, colors)
+        #print(maximum, minimum)
+        if maximum - minimum > 0.1:
+            raw_errors = [(error-minimum)/(maximum-minimum) for error in raw_errors]
+        colors = [colorize(error) for error in raw_errors]
+        write_PLY(os.path.join(folder, '{}_color_barycentric.ply'.format(filename)), vertices, indices, normals, colors)
     else:
-        write_PLY(os.path.join(results_folder, '{}_barycentric.ply'.format(filename)), vertices, indices, normals)
+        write_PLY(os.path.join(folder, '{}_barycentric.ply'.format(filename)), vertices, indices, normals)
 
     print("will begin angle method")
     normals = [angle_interpolation(index) for index in range(len(vertices)) ]
@@ -308,11 +302,27 @@ def interpolate_normals(filepath, compute_analytic_normal, should_colorize = Fal
         raw_errors = [np.linalg.norm(np.cross(np.array(expected_normals[i]), np.array(normals[i]))) for i in range(len(normals))]
         #colors = [colorize(expected_normals[index], normals[index]) for index in range(len(vertices))]
         minimum = min(raw_errors)
+        if minimum < 0.00000001:
+            minimum = 0.0
         maximum = max(raw_errors)
-        colors = [colorize((error-minimum)/(maximum-minimum)) for error in raw_errors]
-        write_PLY(os.path.join(results_folder, '{}_color_angle.ply'.format(filename)), vertices, indices, normals, colors)
+        #print(maximum, minimum)
+        if maximum - minimum > 0.1:
+            raw_errors = [(error-minimum)/(maximum-minimum) for error in raw_errors]
+        colors = [colorize(error) for error in raw_errors]
+        write_PLY(os.path.join(folder, '{}_color_angle.ply'.format(filename)), vertices, indices, normals, colors)
     else:
-        write_PLY(os.path.join(results_folder, '{}_angle.ply'.format(filename)), vertices, indices, normals)
+        write_PLY(os.path.join(folder, '{}_angle.ply'.format(filename)), vertices, indices, normals)
+
+    print("will begin ground truth")
+    normals = [compute_analytic_normal(v) for v in vertices ]
+    print("Will write results")
+    if should_colorize:
+        raw_errors = [np.linalg.norm(np.cross(np.array(expected_normals[i]), np.array(normals[i]))) for i in range(len(normals))]
+
+        colors = [colorize(error) for error in raw_errors]
+        write_PLY(os.path.join(results_folder, '{}_color_groundtruth.ply'.format(filename)), vertices, indices, normals, colors)
+    else:
+        write_PLY(os.path.join(results_folder, '{}_groundtruth.ply'.format(filename)), vertices, indices, normals)
 
 def rec_all_data(folder):
     filenames = [fname for fname in os.listdir(folder) if fname.endswith('.off')]

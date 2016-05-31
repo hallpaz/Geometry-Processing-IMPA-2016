@@ -1,6 +1,17 @@
 import turtle
 import matplotlib.pyplot as plt
 
+
+def colorize(value):
+    if value < 0.25:
+        return (0, int(4.0*value*255), 255)
+    elif value < 0.50:
+        return (0, 255, int((2.0-4.0*value)*255))
+    elif value < 0.75:
+        return (int((4.0*value-2.0)*255), 255, 0)
+    else:
+        return(255, int((4.0-4.0*value)*255), 0)
+
 # points is a lis of numpy arrays
 def draw_segments(points, filename, hold = False):
     if not points:

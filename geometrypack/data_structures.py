@@ -188,6 +188,9 @@ class MinPriorityQueue():
         self.data = []
         self.entry_finder = {} # mapping of points to entries
 
+    def size(self):
+        return len(self.entry_finder.values())
+
     def add_point(self, point, priority=0):
         'Add a new point or update the priority of an existing point'
         if point in self.entry_finder:
