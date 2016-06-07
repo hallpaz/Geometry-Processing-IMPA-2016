@@ -1,12 +1,12 @@
 import argparse
-import drawing
+from . import drawing
 import os
 import triangle
 import matplotlib.pyplot as plt
 import numpy as np
 
-from DataStructures import Vertex, Triangle, BoundingBox
-from data_structures import Node, Color
+from .DataStructures import Vertex, Triangle, BoundingBox
+from .data_structures import Node, Color
 
 
 data_folder = "data"
@@ -118,7 +118,7 @@ def soup_to_mesh(filename: str, output_file: str, dimension = 2):
 
 def setup_graph(vertices, indices):
     #graph initialization
-    triangles = [[t.a, t.b, t.c] for t in indices]
+    triangles = [[t[0], t[1], t[2]] for t in indices]
     num_of_triangles = len(triangles)
     graph = [Node(i) for i in range(num_of_triangles)]
     for n in graph:
@@ -128,7 +128,7 @@ def setup_graph(vertices, indices):
         node.neighbors = [graph[index] for index in range(num_of_triangles) if len(set(node.data).intersection(triangles[index])) == 2]
         node.costs = [1.0 for i in node.neighbors]
 
-    print(len(graph))
+    #print(len(graph))
     return graph
 
 
@@ -156,7 +156,7 @@ def traverse_boundary(graph:list, source, pivot = None):
             for neighbor in node.neighbors:
                 if neighbor.color is not Color.black:
                     if pivot in neighbor.data:
-                        print("in", pivot, neighbor.data)
+                        #print("in", pivot, neighbor.data)
                         boundary.append(neighbor)
                         stack.append(neighbor)
                         if isOnBoundary(neighbor):
@@ -166,7 +166,8 @@ def traverse_boundary(graph:list, source, pivot = None):
                             #update pivot
                         break
                     else:
-                        print(pivot, neighbor.data, node.data)
+                        #print(pivot, neighbor.data, node.data)
+                        pass
 
             node.color = Color.black
         else:
@@ -230,6 +231,53 @@ def draw_boundary(filename: str):
             break
         should_continue = False
         k += 1
+
+def compute_boundary_indices(vertices, indices):
+    #vertices, indices = read_OFF(os.path.join(data_folder, filename))
+    graph = setup_graph(vertices, indices)
+    points = np.array([(v[0], v[1]) for v in vertices])
+
+    for node in graph:
+        node.color = Color.white
+
+    should_continue = False
+    boundary_indices = []
+    k = 0
+    while(True):
+        pioneer = None
+        for node in graph:
+            #print(node.neighbors)
+            if isOnBoundary(node) and node.color is Color.white:
+                pioneer = node
+                should_continue = True
+                break
+
+        if should_continue:
+            boundary, bindex = traverse_boundary(graph, pioneer)
+            boundary_indices.extend(bindex)
+
+            # with open(filename, "a") as boundary_file:
+            #     for index in boundary_indices:
+            #         boundary_file.write("{}\n".format(index))
+
+            # boundary_points = [points[i] for i in boundary_indices]
+            # write_to_file(boundary_points, "fronteira" + str(k) + ".txt")
+            # print(len(boundary))
+        #     incremental = []
+        #     all_triangles = [b.data for b in boundary]
+        #     for i in range(len(boundary)):
+        #         t = boundary[i].data
+        #         incremental.append((t[0], t[1]))
+        #         incremental.append((t[1], t[2]))
+        #         incremental.append((t[0], t[2]))
+        #         ax = plt.axes()
+        #         drawing.plot_and_save(os.path.join(images_folder, os.path.join("boundary", filename[:-4]+ str(k) + str(i) +"_boundary_triangles.png")),
+        #                 True, ax, vertices=points, segments=incremental, triangles=all_triangles)
+        else:
+            break
+        should_continue = False
+        k += 1
+    return boundary_indices
 
 # def face_association_from_OFF(filename: str):
 #     vertices, indices = read_OFF(filename)

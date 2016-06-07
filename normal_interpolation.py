@@ -124,6 +124,20 @@ def create_data():
     write_random_flip_cylinder_mesh(True)
 
 
+def compute_area(tvertices):
+    a = np.linalg.norm(tvertices[0] - tvertices[1])
+    b = np.linalg.norm(tvertices[1] - tvertices[2])
+    c = np.linalg.norm(tvertices[2] - tvertices[0])
+    # calculate the semi-perimeter
+    s = (a + b + c) / 2
+    # calculate the area
+    area = (s*(s-a)*(s-b)*(s-c)) ** 0.5
+    return area
+
+def compute_normal(tvertices):
+    normal = np.cross(tvertices[1] - tvertices[0], tvertices[2] - tvertices[1])
+    return normalize(normal)
+
 # calcula a normal para cada triângulo
 # para cada vértice, identifique todos os triângulos que possuem esse vértice
 # faça uma média ponderara dos valores da normal de cada triângulo que contém
@@ -136,23 +150,23 @@ def interpolate_normals(filepath, compute_analytic_normal, should_colorize = Fal
     neighborhood = compute_neighborhood(vertices, indices)
     print("computed neighborhood")
     # triangle is a list of 3 numpy array
-    def compute_normal(triangle_index):
-        t = indices[triangle_index]
-        a, b, c = t[0], t[1], t[2]
+    # def compute_normal(triangle_index):
+    #     t = indices[triangle_index]
+    #     a, b, c = t[0], t[1], t[2]
+    #
+    #     normal = np.cross(vertices[b] - vertices[a], vertices[c] - vertices[b])
+    #     return normalize(normal)
 
-        normal = np.cross(vertices[b] - vertices[a], vertices[c] - vertices[b])
-        return normalize(normal)
-
-    def compute_area(triangle_index):
-        t = indices[triangle_index]
-        a = np.linalg.norm(vertices[t[0]] - vertices[t[1]])
-        b = np.linalg.norm(vertices[t[1]] - vertices[t[2]])
-        c = np.linalg.norm(vertices[t[2]] - vertices[t[0]])
-        # calculate the semi-perimeter
-        s = (a + b + c) / 2
-        # calculate the area
-        area = (s*(s-a)*(s-b)*(s-c)) ** 0.5
-        return area
+    # def compute_area(triangle_index):
+    #     t = indices[triangle_index]
+    #     a = np.linalg.norm(vertices[t[0]] - vertices[t[1]])
+    #     b = np.linalg.norm(vertices[t[1]] - vertices[t[2]])
+    #     c = np.linalg.norm(vertices[t[2]] - vertices[t[0]])
+    #     # calculate the semi-perimeter
+    #     s = (a + b + c) / 2
+    #     # calculate the area
+    #     area = (s*(s-a)*(s-b)*(s-c)) ** 0.5
+    #     return area
 
     def compute_barycentric_area(triangle_index, pivot_index):
         t = indices[triangle_index]

@@ -115,7 +115,7 @@ def draw_closed_curve(points, filename = None, hold = False):
 
 def plot(ax, **kw):
 
-    #vertices(ax, **kw)
+    vertices(ax, **kw)
     ax.axes.set_aspect('equal')
 
     if 'segments' in kw: segments(ax, **kw)

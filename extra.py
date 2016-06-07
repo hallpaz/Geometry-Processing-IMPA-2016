@@ -311,3 +311,84 @@ def projection_on_surface(vertex, normal, surface):
         c = surface(middle)
 
     return middle
+
+
+def maxnormalize(v):
+    norm = max(v)
+    if norm < 0.0000001:
+        return np.array([0, 0])
+    return v/norm
+
+def laplacian_smooth(vertices, neighborhood, border_indices, iterations = 7):
+    #apply a laplacian
+    for it in range(iterations):
+        for index in range(len(vertices)):
+            if index in border_indices:
+                continue
+            v = vertices[index]
+            neighbors = neighborhood[index]
+            nweight = 0
+            average = np.array([0, 0])
+            for n in neighbors:
+                average = average + vertices[n]
+                nweight += 1
+            v = (v + (average/nweight))/2
+
+def reduce_hole(vertices, neighborhood, border_indices, innermost_vertices_index, iterations=7):
+    for index in innermost_vertices_index:
+        vertices[index] = maxnormalize(vertices[index])
+
+    laplacian_smooth(vertices, neighborhood, border_indices, iterations)
+
+def stretch_border(vertices, indices, border_indices):
+    strectched_vertices = [np.array([v[0], v[1]]) for v in vertices]
+    neighborhood = compute_neighborhood(vertices, indices)
+    radius = BIG_RADIUS
+
+    seen_vertices_index = []
+    old_ring = border_indices
+    while(len(seen_vertices_index) < len(vertices)):
+        current_ring = []
+        for i in old_ring:
+            current_ring.extend(neighborhood[i])
+        # filter the vertices that were already seen
+        current_ring = [index for index in current_ring if index not in seen_vertices_index]
+        # remove duplicates
+        current_ring = list(set(current_ring))
+        for i in current_ring:
+            strectched_vertices[i] = maxnormalize(strectched_vertices[i]) * radius
+        seen_vertices_index.extend(current_ring)
+        old_ring = current_ring
+        radius -= 1
+
+    # Optional
+    reduce_hole(strectched_vertices, neighborhood, border_indices, old_ring)
+    return strectched_vertices
+
+def project_and_adjust(vertices, indices, border_indices, iterations=7):
+    projected_vertices = [np.array([v[0], v[1]]) for v in vertices]
+    neighborhood = compute_neighborhood(vertices, indices)
+
+
+    for index in border_indices:
+        print("Before normalization: ", projected_vertices[index], index)
+        projected_vertices[index] = maxnormalize(projected_vertices[index])
+        print("After normalization: ", projected_vertices[index], index)
+
+
+
+
+    for it in range(iterations):
+        laplacian_smooth(projected_vertices, neighborhood, border_indices, 1000)
+
+    return projected_vertices
+
+def compute_uvcoordinates_onsquare(square_vertices, half_size=BIG_RADIUS):
+    upper_left = np.array([-half_size, -half_size])
+    # upper_right = np.array([half_size, -half_size])
+    # lower_left = np.array([-half_size, half_size])
+    # lower_right = np.array([half_size, half_size])
+    uv = [(np.linalg.norm(upper_left - np.array([v[0], -half_size]))/2*half_size,
+         np.linalg.norm(upper_left - np.array([-half_size, v[1]]))/2*half_size)
+         for v in square_vertices]
+    return uv
