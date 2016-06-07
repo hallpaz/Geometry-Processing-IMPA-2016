@@ -1,7 +1,15 @@
 import numpy as np
 from collections import deque
-from .data_structures import Color
+from .data_structures import Color, Node
+from scipy.linalg import expm3, norm
 
+
+def rotation_matrix(axis, theta):
+    return expm3(np.cross(np.eye(3), axis/norm(axis)*theta))
+# angle in radians
+def rotate(vertices, axis, angle):
+    m = rotation_matrix(axis, angle)
+    return [np.dot(m,v) for v in vertices]
 
 def compute_neighborhood(vertices, indices):
     # neighborhood[i] é uma lista que contém os índices de todos os triângulos
@@ -176,3 +184,89 @@ def simple_mesh_smoothing(points, graph, anchor_indices = []):
         return np.array(smoothed_points)
 
     return np.array(points)
+
+def setup_graph(vertices, indices):
+    #graph initialization
+    triangles = [[t[0], t[1], t[2]] for t in indices]
+    num_of_triangles = len(triangles)
+    graph = [Node(i) for i in range(num_of_triangles)]
+    for n in graph:
+        n.data = triangles[n.id]
+    for node in graph:
+        # current_vertices  = triangles[node.id]
+        node.neighbors = [graph[index] for index in range(num_of_triangles) if len(set(node.data).intersection(triangles[index])) == 2]
+        node.costs = [1.0 for i in node.neighbors]
+
+    #print(len(graph))
+    return graph
+
+
+def isOnBoundary(node):
+    if len(node.neighbors) < 3:
+        return True
+    return False
+
+def traverse_boundary(graph:list, source, pivot = None):
+    """Runs a BFS and compute graph size during the process"""
+
+    if pivot is None:
+        pivot = source.data[0]
+        if pivot in source.neighbors[0].data and pivot in source.neighbors[1].data:
+            pivot = source.data[1]
+
+    boundary = []
+    boundary_indices = [pivot]
+    stack = []
+    stack.append(source)
+    boundary.append(source)
+    while(stack):
+        node = stack.pop()
+        if node.color is not Color.Black:
+            for neighbor in node.neighbors:
+                if neighbor.color is not Color.Black:
+                    if pivot in neighbor.data:
+                        #print("in", pivot, neighbor.data)
+                        boundary.append(neighbor)
+                        stack.append(neighbor)
+                        if isOnBoundary(neighbor):
+                            # neighbor is on the boundary
+                            pivot = [newpivot for newpivot in neighbor.data if newpivot not in node.data][0]
+                            boundary_indices.append(pivot)
+                            #update pivot
+                        break
+                    else:
+                        #print(pivot, neighbor.data, node.data)
+                        pass
+
+            node.color = Color.Black
+        else:
+            print("Black node")
+
+    return boundary, boundary_indices
+
+def compute_boundary_indices(vertices, indices):
+    graph = setup_graph(vertices, indices)
+    points = np.array([(v[0], v[1]) for v in vertices])
+    for node in graph:
+        # node.color = Color.White
+        node.color = Color.White
+
+    should_continue = False
+    boundary_indices = []
+    k = 0
+    while(True):
+        pioneer = None
+        for node in graph:
+            #print(node.neighbors)
+            if isOnBoundary(node) and node.color is Color.White:
+                pioneer = node
+                should_continue = True
+                break
+        if should_continue:
+            boundary, bindex = traverse_boundary(graph, pioneer)
+            boundary_indices.extend(bindex)
+        else:
+            break
+        should_continue = False
+        k += 1
+    return boundary_indices

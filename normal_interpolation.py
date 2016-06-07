@@ -248,6 +248,20 @@ def angle_interpolation(vertex_index):
     normal = normalize(normal)
     return normal
 
+def compute_area(tvertices):
+    a = np.linalg.norm(tvertices[0] - tvertices[1])
+    b = np.linalg.norm(tvertices[1] - tvertices[2])
+    c = np.linalg.norm(tvertices[2] - tvertices[0])
+    # calculate the semi-perimeter
+    s = (a + b + c) / 2
+    # calculate the area
+    area = (s*(s-a)*(s-b)*(s-c)) ** 0.5
+    return area
+
+def compute_normal(tvertices):
+    normal = np.cross(tvertices[1] - tvertices[0], tvertices[2] - tvertices[1])
+    return normalize(normal)
+
 # calcula a normal para cada triângulo
 # para cada vértice, identifique todos os triângulos que possuem esse vértice
 # faça uma média ponderara dos valores da normal de cada triângulo que contém
@@ -258,6 +272,109 @@ def interpolate_normals(filepath, methods, compute_analytic_normal, should_color
     print("BEGIN", filepath)
     neighborhood = compute_neighborhood(vertices, indices)
     print("computed neighborhood")
+<<<<<<< HEAD
+=======
+    # triangle is a list of 3 numpy array
+    # def compute_normal(triangle_index):
+    #     t = indices[triangle_index]
+    #     a, b, c = t[0], t[1], t[2]
+    #
+    #     normal = np.cross(vertices[b] - vertices[a], vertices[c] - vertices[b])
+    #     return normalize(normal)
+
+    # def compute_area(triangle_index):
+    #     t = indices[triangle_index]
+    #     a = np.linalg.norm(vertices[t[0]] - vertices[t[1]])
+    #     b = np.linalg.norm(vertices[t[1]] - vertices[t[2]])
+    #     c = np.linalg.norm(vertices[t[2]] - vertices[t[0]])
+    #     # calculate the semi-perimeter
+    #     s = (a + b + c) / 2
+    #     # calculate the area
+    #     area = (s*(s-a)*(s-b)*(s-c)) ** 0.5
+    #     return area
+
+    def compute_barycentric_area(triangle_index, pivot_index):
+        t = indices[triangle_index]
+        #index of the pivot on this triangle
+        local_index = 0
+        for i in t:
+            if i == pivot_index:
+                break
+            local_index += 1
+        # the indices of the other vertices on this triangle
+        a, b = (local_index + 1)%3, (local_index + 2)%3
+        pivot, v1, v2 = vertices[local_index], vertices[a], vertices[b]
+        barycenter = (pivot + v1 + v2)/3
+        area = 0
+        #first triangle area:
+        a = np.linalg.norm((pivot - v1)/2)
+        b = np.linalg.norm(pivot - barycenter)
+        c = np.linalg.norm((v1 + (pivot-v1)/2) - barycenter)
+        s = (a + b + c) / 2
+        # increment the area
+        area += (s*(s-a)*(s-b)*(s-c)) ** 0.5
+
+        #second triangle area:
+        a = np.linalg.norm((pivot - v2)/2)
+        b = np.linalg.norm(pivot - barycenter)
+        c = np.linalg.norm((v2 + (pivot-v2)/2) - barycenter)
+        s = (a + b + c) / 2
+        # calculate the area
+        area += (s*(s-a)*(s-b)*(s-c)) ** 0.5
+
+        return area
+
+    def compute_angle(triangle_index, pivot_index):
+        local_index = 0
+        t = indices[triangle_index]
+        for i in t:
+            if i == pivot_index:
+                break
+            local_index += 1
+        # the indices of the other vertices on this triangle
+        a, b = (local_index + 1)%3, (local_index + 2)%3
+        pivot, v1, v2 = vertices[local_index], vertices[a], vertices[b]
+        u, v = pivot - v1, pivot - v2
+
+        c = np.dot(u,v)/np.linalg.norm(u)/np.linalg.norm(v) # -> cosine of the angle
+        angle = np.arccos(np.clip(c, -1, 1)) # if you really want the angle
+        return angle
+
+    # def colorize(analyticnormal, estimatednormal, minimum, maximum):
+    #     error = np.linalg.norm(np.cross(np.array(analyticnormal), np.array(estimatednormal)))
+    #     error = (error - minimum)/(maximum-minimum)
+    #     return colorize(error)
+
+    #compute the normal at vertex 'vertex_index' by simple average
+    def mean_interpolation(vertex_index):
+        normal = np.array([0, 0, 0]) #will accumulate
+        for triangle_index in neighborhood[vertex_index]:
+            normal = normal + compute_normal(triangle_index)
+        if len(neighborhood[vertex_index]) == 0:
+            print(vertex_index, "null neighboorhood")
+        normal = normalize(normal/len(neighborhood[vertex_index]))
+        return normal
+
+    def area_interpolation(vertex_index):
+        normal = np.array([0, 0, 0])
+        for triangle_index in neighborhood[vertex_index]:
+            normal = normal + compute_area(triangle_index) * compute_normal(triangle_index)
+        normal = normalize(normal)
+        return normal
+
+    def barycentric_area_interpolation(vertex_index):
+        normal = np.array([0, 0, 0])
+        for triangle_index in neighborhood[vertex_index]:
+            normal = normal + compute_barycentric_area(triangle_index, vertex_index) * compute_normal(triangle_index)
+        normal = normalize(normal)
+        return normal
+
+    def angle_interpolation(vertex_index):
+        normal = np.array([0, 0, 0])
+        for triangle_index in neighborhood[vertex_index]:
+            normal = normal + compute_angle(triangle_index, vertex_index) * compute_normal(triangle_index)
+        normal = normalize(normal)
+        return normal
 
     expected_normals = [compute_analytic_normal(v) for v in vertices]
     for method in methods:

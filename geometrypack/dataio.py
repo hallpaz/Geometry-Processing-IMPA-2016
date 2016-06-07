@@ -39,7 +39,30 @@ def write_OFF(output_file, vertices, indices):
         %s%s
         '''%(len(str_vertices),len(str_indices), "".join(str_vertices), "".join(str_indices)))
 
+def write_uv_PLY(output_file, vertices, indices, uv):
 
+    str_vertices = ["{} {} {}\n".format(v[0], v[1], v[2]) for v in vertices]
+    str_indices = ["3 {} {} {} 6 {} {} {} {} {} {}\n".format(i[0], i[1], i[2],
+    uv[i[0]][0], uv[i[0]][1], uv[i[1]][0], uv[i[1]][1], uv[i[2]][0], uv[i[2]][1]) for i in indices]
+    # str_uv = ["{} {} {}".format(n[0], n[1], n[2]) for n in normals]
+
+    # str_vertices = [ "{} {}\n".format(str_vertices[i], str_normals[i]) for i in range(len(vertices)) ]
+
+    with open(output_file,"w") as meshfile:
+        meshfile.write('''ply
+    format ascii 1.0
+    comment VCGLIB generated
+    element vertex {0}
+    property float x
+    property float y
+    property float z
+    element face {1}
+    property list uchar int vertex_indices
+    property list uchar float texcoord
+    end_header
+{2}
+{3}
+'''.format(len(str_vertices), len(str_indices), ''.join(str_vertices), ''.join(str_indices)))
 
 def write_PLY(output_file, vertices, indices, normals):
 
