@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 import matplotlib.pyplot as plt
-from math import pi
+from math import pi, sqrt
 from geometrypack.dataio import read_OFF, write_PLY, write_OFF, write_uv_PLY
 from geometrypack.algorithms import distance_vertex_plane, normalize
 #from geometrypack.drawing import colorize
@@ -13,6 +13,16 @@ from geometrypack.meshes import compute_neighborhood, compute_boundary_indices, 
 
 # JUST IMPORTED COMPUTE BOUNDARY INDICES
 BIG_RADIUS = 10
+
+def compute_area(tvertices):
+    a = np.linalg.norm(tvertices[0] - tvertices[1])
+    b = np.linalg.norm(tvertices[1] - tvertices[2])
+    c = np.linalg.norm(tvertices[2] - tvertices[0])
+    # calculate the semi-perimeter
+    s = (a + b + c) / 2
+    # calculate the area
+    area = (s*(s-a)*(s-b)*(s-c)) ** 0.5
+    return area
 
 def maxnormalize(v):
     norm = max(v)
@@ -55,6 +65,41 @@ def laplacian_adjust(vertices, neighborhood, border_indices, iterations=1):
                 average = average + vertices[n]
             vertices[index] = (vertices[index] + average)/(len(neighbors)+1)
     return vertices
+
+def edgesize_adjust(vertices3D, vertices2D, neighborhood, border_indices, iterations=1):
+    '''average vertices but keep borders fixed'''
+
+    for k in range(iterations):
+        for index in range(len(vertices2D)):
+            if index in border_indices:
+                #print("border", index)
+                continue
+            neighbors = neighborhood[index]
+            average = np.array([0, 0])
+            weightsum = 0
+            for n in neighbors:
+                w = np.linalg.norm(vertices3D[index] - vertices3D[n])
+                average = average + w*vertices2D[n]
+                weightsum += w
+            vertices2D[index] = average/weightsum
+    return vertices2D
+
+def edgeadjust3D(vertices3D, neighborhood, border_indices, iterations=1):
+    for k in range(iterations):
+        for index in range(len(vertices3D)):
+            if index in border_indices:
+                #print("border", index)
+                continue
+            neighbors = neighborhood[index]
+            average = np.array([0, 0, 0])
+            weightsum = 0
+            for n in neighbors:
+                w = np.linalg.norm(vertices3D[index] - vertices3D[n])
+                average = average + w*vertices3D[n]
+                weightsum += w
+            vertices3D[index] = average/weightsum
+    return vertices3D
+
 
 def stretch_border(vertices, indices):
     strectched_vertices = np.array([[v[0], v[1]] for v in vertices])
@@ -116,6 +161,52 @@ def projection(iterations):
             uvfile.write("{} {}\n".format(coordinate[0], coordinate[1]))
     write_uv_PLY("uvmanequin.ply", vertices, indices, uv)
 
+def edgesizeprojection(iterations):
+    vertices, indices = read_OFF("data/meshes/manequin.off")
+    border_indices = compute_boundary_indices(vertices, indices)
+
+    neighborhood = compute_neighborhood(vertices, indices)
+    projected_vertices = np.array([[v[0], v[1]] for v in vertices])
+    for k in range(iterations):
+        ax = plt.axes()
+        drawing.plot_and_save("manequin_es/{}.png".format(k), False, ax, vertices=projected_vertices, triangles=indices)
+        drawing.plot_and_save("manequin_es/{}.png".format(k), True, ax, vertices=np.array([projected_vertices[i] for i in border_indices]), vertices_color="red")
+        projected_vertices = edgesize_adjust(vertices, projected_vertices, neighborhood, border_indices, 1)
+        print("Ok", k)
+
+    bbox = bounding_square(projected_vertices)
+    uv = uvcoordinates(projected_vertices, bbox)
+    with open("uv_es1000.txt", "w") as uvfile:
+        for coordinate in uv:
+            uvfile.write("{} {}\n".format(coordinate[0], coordinate[1]))
+    write_uv_PLY("uvmanequin_es.ply", vertices, indices, uv)
+
+def onsurfacecomputation(iterations):
+    vertices, indices = read_OFF("data/meshes/manequin.off")
+    border_indices = compute_boundary_indices(vertices, indices)
+
+    neighborhood = compute_neighborhood(vertices, indices)
+    projected_vertices = np.array([[v[0], v[1], v[2]] for v in vertices])
+    for k in range(iterations):
+        ax = plt.axes()
+        drawing.plot_and_save("manequin_sdt/{}.png".format(k), False, ax, vertices=projected_vertices, triangles=indices)
+        drawing.plot_and_save("manequin_sdt/{}.png".format(k), True, ax, vertices=np.array([projected_vertices[i] for i in border_indices]), vertices_color="red")
+        projected_vertices = edgeadjust3D(projected_vertices, neighborhood, border_indices, 1)
+        print("Ok", k)
+
+    # now, we do project on the plane
+    # projected_vertices = np.array([[v[0], v[1]] for v in projected_vertices])
+    bbox = bounding_square(projected_vertices)
+    uv = uvcoordinates(projected_vertices, bbox)
+    with open("uv_3Dpj1000.txt", "w") as uvfile:
+        for coordinate in uv:
+            uvfile.write("{} {}\n".format(coordinate[0], coordinate[1]))
+    write_uv_PLY("uvmanequin_3Dpj.ply", vertices, indices, uv)
+    try:
+        write_uv_PLY("manequin3Ddistorted.ply", projected_vertices, indices, uv)
+    except Exception as e:
+        print(e)
+
 def square_projection():
     vertices, indices = read_OFF("data/meshes/manequin.off")
     border_indices = compute_boundary_indices(vertices, indices)
@@ -146,6 +237,100 @@ def circle_projection():
         projected_vertices = laplacian_adjust(projected_vertices, neighborhood, border_indices)
         print("Ok", k)
 
+
+def triangle_stretch_measure(p1, p2, p3, q1, q2, q3):
+    '''p is the point in the plane domain. q is the vertex on the surface domain'''
+
+    A = ((p2[0]-p1[0])*(p3[1]-p1[1]) - (p3[0]-p1[0])*(p2[1]-p1[1]))/2
+    Ss = (q1*(p2[1]-p3[1]) + q2*(p3[1]-p1[1]) + q3*(p1[1]-p2[1]))/(2*A)
+    St = (q1*(p3[0]-p2[0]) + q2*(p1[0]-p3[0]) + q3*(p2[0]-p1[0]))/(2*A)
+
+    a = np.dot(Ss, Ss)
+    b = np.dot(Ss, St)
+    c = np.dot(St, St)
+
+    delta = sqrt((a-c)**2 + 4*b*b)
+    big_gamma_squared = ((a+c) + delta)/2
+    small_gamma_squared = ((a+c) - delta)/2
+    stretchvalue = sqrt((big_gamma_squared+small_gamma_squared)/2)
+    return stretchvalue
+
+def vertex_stretch_measure(vertices3D, vertices2D, surrounding_triangles):
+    areasum = 0
+    numsum = 0
+    for t in surrounding_triangles:
+        tvertices3D = [vertices3D[t[0]], vertices3D[t[1]], vertices3D[t[2]]]
+        tvertices2D = [vertices2D[t[0]], vertices2D[t[1]], vertices2D[t[2]]]
+        area = compute_area(tvertices3D)
+        areasum += area
+        # print(type(tvertices2D[0]), type(tvertices3D[0]))
+        tsmeasure = triangle_stretch_measure(tvertices2D[0], tvertices2D[1], tvertices2D[2],
+                                            tvertices3D[0], tvertices3D[1], tvertices3D[2])
+        numsum += area*tsmeasure*tsmeasure
+    stretchvalue = sqrt(numsum/areasum)
+    return stretchvalue
+
+def baseprojection(vertices, indices, iterations):
+
+    border_indices = compute_boundary_indices(vertices, indices)
+
+    neighborhood = compute_neighborhood(vertices, indices)
+    projected_vertices = np.array([[v[0], v[1]] for v in vertices])
+
+    projected_vertices = edgesize_adjust(vertices, projected_vertices, neighborhood, border_indices, iterations)
+    ax = plt.axes()
+    drawing.plot_and_save("manequin_base/{}.png".format(k), False, ax, vertices=projected_vertices, triangles=indices)
+    drawing.plot_and_save("manequin_base/{}.png".format(k), True, ax, vertices=np.array([projected_vertices[i] for i in border_indices]), vertices_color="red")
+
+    print("Ok base")
+    return projected_vertices
+
+
+def stretch_minimizer():
+    iterations = 7
+    vertices, indices = read_OFF("data/meshes/manequin.off")
+    projected_vertices = np.array([[v[0], v[1]] for v in vertices])
+    neighborhood = compute_neighborhood(vertices, indices)
+    surrounding_triangles = [[t for t in indices if index in t] for index in range(len(vertices))]
+    border_indices = compute_boundary_indices(vertices, indices)
+
+    # base parametrization
+    k = 777
+    projected_vertices = edgesize_adjust(vertices, projected_vertices, neighborhood, border_indices, k)
+    # hum...
+    # bbox = bounding_square(projected_vertices)
+    # projected_vertices = np.array(uvcoordinates(projected_vertices, bbox))
+
+    ax = plt.axes()
+    drawing.plot_and_save("manequin_base/{}.png".format(k), False, ax, vertices=projected_vertices, triangles=indices)
+    drawing.plot_and_save("manequin_base/{}.png".format(k), True, ax, vertices=np.array([projected_vertices[i] for i in border_indices]), vertices_color="red")
+    print("will start method")
+    # uniform weights to begin
+    weights = [1 for i in range(len(vertices))]
+    for k in range(iterations):
+        weights = [weights[j]/vertex_stretch_measure(vertices, projected_vertices, surrounding_triangles[j]) for j in range(len(weights))]
+        for index in range(len(projected_vertices)):
+            if index in border_indices:
+                continue
+            neighbors = neighborhood[index]
+            average = np.array([0, 0])
+            weightsum = 0
+            # print(surrounding_triangles[index])
+            for n in neighbors:
+                # weights[n] = weights[n]/vertex_stretch_measure(vertices, projected_vertices, surrounding_triangles[n])
+                average = average + weights[n]*projected_vertices[n]
+                weightsum += weights[n]
+            projected_vertices[index] = average/weightsum
+        ax = plt.axes()
+        drawing.plot_and_save("manequin_stretch/{}.png".format(k), False, ax, vertices=projected_vertices, triangles=indices)
+        drawing.plot_and_save("manequin_stretch/{}.png".format(k), True, ax, vertices=np.array([projected_vertices[i] for i in border_indices]), vertices_color="red")
+
+    bbox = bounding_square(projected_vertices)
+    uv = uvcoordinates(projected_vertices, bbox)
+    with open("uv_stretch1000.txt", "w") as uvfile:
+        for coordinate in uv:
+            uvfile.write("{} {}\n".format(coordinate[0], coordinate[1]))
+    write_uv_PLY("uvmanequin_stretch.ply", vertices, indices, uv)
 
 def main():
     vertices, indices = read_OFF("data/meshes/manequin90.off")
@@ -191,4 +376,7 @@ if __name__ == '__main__':
     # square_projection()
     # circle_projection()
     # projection(1)
-    use_stretch()
+    # use_stretch()
+    # edgesizeprojection(1000)
+    # onsurfacecomputation(1000)
+    stretch_minimizer()
