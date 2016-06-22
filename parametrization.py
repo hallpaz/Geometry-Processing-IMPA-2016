@@ -51,6 +51,35 @@ def uvcoordinates(vertices, box):
     uv = [((vertices[i][0] - box[0])/width, (vertices[i][1] - box[1])/height) for i in range(len(vertices))]
     return uv
 
+def mesh_subdivision(vertices, triangles, indices_map, num_iterations = 1):
+    def index_of(vertex, vertices):
+        key = str(vertex[0]) + str(vertex[1]) + str(vertex[2])
+        if key in indices_map:
+            return indices_map[key]
+        else:
+            index = len(indices_map)
+            # vertices.append(vertex)
+            vertices = np.append(vertices, [vertex])
+            indices_map[key] = index
+            return index
+
+    refined_mesh = []
+    for i in range(num_iterations):
+        for t in triangles:
+            # normalization to put over the unit sphere
+            v1 = ((vertices[t[0]] + vertices[t[1]])/2)#.normalize()
+            v2 = ((vertices[t[1]] + vertices[t[2]])/2)#.normalize()
+            v3 = ((vertices[t[0]] + vertices[t[2]])/2)#.normalize()
+
+            refined_mesh.append(np.array( [t[0], index_of(v1, vertices), index_of(v3, vertices)]))
+            refined_mesh.append(np.array( [t[1], index_of(v2, vertices), index_of(v1, vertices)]))
+            refined_mesh.append(np.array( [t[2], index_of(v3, vertices), index_of(v2, vertices)]))
+            refined_mesh.append(np.array([index_of(v1, vertices), index_of(v2, vertices), index_of(v3, vertices)]))
+        triangles = refined_mesh
+
+        write_OFF("refined_manequin" + str(num_iterations) + ".off", vertices, triangles)
+    return refined_mesh, vertices, indices_map
+
 def laplacian_adjust(vertices, neighborhood, border_indices, iterations=1):
     '''average vertices but keep borders fixed'''
 
@@ -78,7 +107,7 @@ def edgesize_adjust(vertices3D, vertices2D, neighborhood, border_indices, iterat
             average = np.array([0, 0])
             weightsum = 0
             for n in neighbors:
-                w = np.linalg.norm(vertices3D[index] - vertices3D[n])
+                w = np.linalg.norm(vertices2D[index] - vertices2D[n])
                 average = average + w*vertices2D[n]
                 weightsum += w
             vertices2D[index] = average/weightsum
@@ -249,10 +278,11 @@ def triangle_stretch_measure(p1, p2, p3, q1, q2, q3):
     b = np.dot(Ss, St)
     c = np.dot(St, St)
 
-    delta = sqrt((a-c)**2 + 4*b*b)
-    big_gamma_squared = ((a+c) + delta)/2
-    small_gamma_squared = ((a+c) - delta)/2
-    stretchvalue = sqrt((big_gamma_squared+small_gamma_squared)/2)
+    # delta = sqrt((a-c)**2 + 4*b*b)
+    # big_gamma_squared = ((a+c) + delta)/2
+    # small_gamma_squared = ((a+c) - delta)/2
+    # stretchvalue = sqrt((big_gamma_squared+small_gamma_squared)/2)
+    stretchvalue = sqrt((a+c)/2)
     return stretchvalue
 
 def vertex_stretch_measure(vertices3D, vertices2D, surrounding_triangles):
@@ -285,9 +315,24 @@ def baseprojection(vertices, indices, iterations):
     print("Ok base")
     return projected_vertices
 
+def uniform_adjust(vertices, neighborhood, border_indices, iterations=1):
+    '''average vertices but keep borders fixed'''
+
+    for k in range(iterations):
+        for index in range(len(vertices)):
+            if index in border_indices:
+                #print("border", index)
+                continue
+            neighbors = neighborhood[index]
+            average = np.array([0, 0])
+            for n in neighbors:
+                average = average + vertices[n]
+            vertices[index] =  average/len(neighbors)
+    return vertices
+
 
 def stretch_minimizer():
-    iterations = 7
+    iterations = 100
     vertices, indices = read_OFF("data/meshes/manequin.off")
     projected_vertices = np.array([[v[0], v[1]] for v in vertices])
     neighborhood = compute_neighborhood(vertices, indices)
@@ -296,7 +341,8 @@ def stretch_minimizer():
 
     # base parametrization
     k = 777
-    projected_vertices = edgesize_adjust(vertices, projected_vertices, neighborhood, border_indices, k)
+    # projected_vertices = edgesize_adjust(vertices, projected_vertices, neighborhood, border_indices, k)
+    projected_vertices = uniform_adjust(projected_vertices, neighborhood, border_indices, k)
     # hum...
     # bbox = bounding_square(projected_vertices)
     # projected_vertices = np.array(uvcoordinates(projected_vertices, bbox))
@@ -320,6 +366,7 @@ def stretch_minimizer():
                 # weights[n] = weights[n]/vertex_stretch_measure(vertices, projected_vertices, surrounding_triangles[n])
                 average = average + weights[n]*projected_vertices[n]
                 weightsum += weights[n]
+            print("k:", k, "index:", index, "weightsum", weightsum, "average", average)
             projected_vertices[index] = average/weightsum
         ax = plt.axes()
         drawing.plot_and_save("manequin_stretch/{}.png".format(k), False, ax, vertices=projected_vertices, triangles=indices)
@@ -327,7 +374,7 @@ def stretch_minimizer():
 
     bbox = bounding_square(projected_vertices)
     uv = uvcoordinates(projected_vertices, bbox)
-    with open("uv_stretch1000.txt", "w") as uvfile:
+    with open("uv_stretch100.txt", "w") as uvfile:
         for coordinate in uv:
             uvfile.write("{} {}\n".format(coordinate[0], coordinate[1]))
     write_uv_PLY("uvmanequin_stretch.ply", vertices, indices, uv)
@@ -367,6 +414,11 @@ def mark_border(filename):
     name = os.path.splitext(os.path.basename(filename))[0]
     write_PLY("marked_" + name + ".ply", vertices, indices, normals, colors)
 
+def subdivide_mesh(input_file):
+    vertices, triangles = read_OFF(input_file)
+    indices_map = { str(v[0]) + str(v[1]) + str(v[2]) : i for i in range(len(vertices)) for v in vertices }
+    mesh_subdivision(vertices, triangles, indices_map, 1)
+
 if __name__ == '__main__':
     # vertices, indices = read_OFF("data/meshes/manequin.off")
     # vertices = rotate(vertices, [1, 0, 0], -pi/2)
@@ -379,4 +431,5 @@ if __name__ == '__main__':
     # use_stretch()
     # edgesizeprojection(1000)
     # onsurfacecomputation(1000)
-    stretch_minimizer()
+    # stretch_minimizer()
+    subdivide_mesh('data/meshes/manequin90.off')
