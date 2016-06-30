@@ -12,8 +12,8 @@ def rotate(vertices, axis, angle):
     return [np.dot(m,v) for v in vertices]
 
 def compute_neighborhood(vertices, indices):
-    # neighborhood[i] é uma lista que contém os índices de todos os triângulos
-    # que contém o vértice i
+    # neighborhood[i] é uma lista que contém os índices de todos os vertices
+    # que estão conectados ao vértice i
     neighborhood = [ set([]) for i in vertices]
     for index in range(len(indices)):
         # t recebe os 3 indices do triangulo da posição 'index'
@@ -22,6 +22,17 @@ def compute_neighborhood(vertices, indices):
             neighborhood[t[i]].add(t[(i+1)%3])
             neighborhood[t[i]].add(t[(i+2)%3])
 
+    return neighborhood
+
+def compute_neighborhood_triangles(vertices, indices):
+    # neighborhood[i] é uma lista que contém os índices de todos os triângulos
+    # que contém o vértice i
+    neighborhood = [ set([]) for i in vertices]
+    for index in range(len(indices)):
+        # t recebe os 3 indices do triangulo da posição 'index'
+        t = indices[index]
+        for i in range(3):
+            neighborhood[t[i]].add(index)
     return neighborhood
 
 def mesh_refinement_into_sphere(triangles, vertices, indices_map, num_iterations = 1):

@@ -171,16 +171,16 @@ def stretch_border(vertices, indices):
     return strectched_vertices
 
 def projection(iterations):
-    vertices, indices = read_OFF("data/meshes/manequin.off")
+    vertices, indices = read_OFF("data/meshes/manequin_remeshed.off")
     border_indices = compute_boundary_indices(vertices, indices)
 
     neighborhood = compute_neighborhood(vertices, indices)
     projected_vertices = np.array([[v[0], v[1]] for v in vertices])
     for k in range(iterations):
         ax = plt.axes()
-        # drawing.plot_and_save("manequin/{}.png".format(k), False, ax, vertices=projected_vertices, triangles=indices)
-        # drawing.plot_and_save("manequin/{}.png".format(k), True, ax, vertices=np.array([projected_vertices[i] for i in border_indices]), vertices_color="red")
-        projected_vertices = laplacian_adjust(projected_vertices, neighborhood, border_indices, 1000)
+        drawing.plot_and_save("manequinp/{}.png".format(k), False, ax, vertices=projected_vertices, triangles=indices)
+        drawing.plot_and_save("manequinp/{}.png".format(k), True, ax, vertices=np.array([projected_vertices[i] for i in border_indices]), vertices_color="red")
+        projected_vertices = laplacian_adjust(projected_vertices, neighborhood, border_indices, 2)
         print("Ok", k)
 
     bbox = bounding_square(projected_vertices)
@@ -333,7 +333,7 @@ def uniform_adjust(vertices, neighborhood, border_indices, iterations=1):
 
 def stretch_minimizer():
     iterations = 100
-    vertices, indices = read_OFF("data/meshes/manequin.off")
+    vertices, indices = read_OFF("data/meshes/manequin_remeshed.off")
     projected_vertices = np.array([[v[0], v[1]] for v in vertices])
     neighborhood = compute_neighborhood(vertices, indices)
     surrounding_triangles = [[t for t in indices if index in t] for index in range(len(vertices))]
@@ -369,8 +369,8 @@ def stretch_minimizer():
             print("k:", k, "index:", index, "weightsum", weightsum, "average", average)
             projected_vertices[index] = average/weightsum
         ax = plt.axes()
-        drawing.plot_and_save("manequin_stretch/{}.png".format(k), False, ax, vertices=projected_vertices, triangles=indices)
-        drawing.plot_and_save("manequin_stretch/{}.png".format(k), True, ax, vertices=np.array([projected_vertices[i] for i in border_indices]), vertices_color="red")
+        drawing.plot_and_save("manequin_remeshed/{}.png".format(k), False, ax, vertices=projected_vertices, triangles=indices)
+        drawing.plot_and_save("manequin_remeshed/{}.png".format(k), True, ax, vertices=np.array([projected_vertices[i] for i in border_indices]), vertices_color="red")
 
     bbox = bounding_square(projected_vertices)
     uv = uvcoordinates(projected_vertices, bbox)
@@ -427,9 +427,9 @@ if __name__ == '__main__':
     #main()
     # square_projection()
     # circle_projection()
-    # projection(1)
+    projection(1000)
     # use_stretch()
     # edgesizeprojection(1000)
     # onsurfacecomputation(1000)
     # stretch_minimizer()
-    subdivide_mesh('data/meshes/manequin90.off')
+    # subdivide_mesh('data/meshes/manequin90.off')
